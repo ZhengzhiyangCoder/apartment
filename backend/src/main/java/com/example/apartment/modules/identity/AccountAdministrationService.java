@@ -1,6 +1,7 @@
 package com.example.apartment.modules.identity;
 
 import com.example.apartment.common.ApiException;
+import com.example.apartment.modules.housing.StudentProfileReferences;
 import com.example.apartment.support.audit.AuditWriter;
 import java.nio.charset.StandardCharsets;
 import org.springframework.dao.DuplicateKeyException;
@@ -15,9 +16,10 @@ public class AccountAdministrationService {
     private final AccountMapper accounts;
     private final PasswordEncoder passwords;
     private final AuditWriter audit;
+    private final StudentProfileReferences studentProfiles;
     public AccountAdministrationService(AccountAdministrationMapper management, AccountMapper accounts,
-            PasswordEncoder passwords, AuditWriter audit) {
-        this.management = management; this.accounts = accounts; this.passwords = passwords; this.audit = audit;
+            PasswordEncoder passwords, AuditWriter audit, StudentProfileReferences studentProfiles) {
+        this.management = management; this.accounts = accounts; this.passwords = passwords; this.audit = audit; this.studentProfiles = studentProfiles;
     }
 
     @Transactional(readOnly = true)
@@ -49,6 +51,7 @@ public class AccountAdministrationService {
     public AccountView changeRole(AccountPrincipal actor, long id, AccountRequests.ChangeRole input) {
         var before = lockTarget(actor, id, input.version());
         if (before.role() == input.role()) return AccountView.of(before);
+        if (input.role() != Role.STUDENT) studentProfiles.requireUnlinked(id);
         if (input.role() != Role.SYSTEM_ADMIN) protectLastAdministrator(before);
         management.changeRole(id, input.role());
         return recordChange(actor, "ACCOUNT_ROLE_CHANGED", before);

@@ -37,7 +37,7 @@ public class ApiExceptionHandler {
     }
     @ExceptionHandler(ConcurrencyFailureException.class)
     ResponseEntity<ApiError> conflict(ConcurrencyFailureException error) {
-        return ResponseEntity.status(HttpStatus.CONFLICT).body(new ApiError("CONCURRENT_CHANGE", "账号正在被其他操作更新，请刷新后重试"));
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(new ApiError("CONCURRENT_CHANGE", "资料正在被其他操作更新，请刷新后重试"));
     }
     @ExceptionHandler(Exception.class)
     ResponseEntity<ApiError> unexpected(Exception error) {

@@ -12,9 +12,10 @@ elif [[ $# -ne 0 ]]; then
 fi
 {
   printf 'START TRANSACTION;\n'
-  if [[ "$reset" == true ]]; then printf 'DELETE FROM operation_log;\nDELETE FROM sys_user;\n'; fi
+  if [[ "$reset" == true ]]; then printf 'DELETE FROM operation_log;\nDELETE FROM dorm_bed;\nDELETE FROM dorm_room;\nDELETE FROM dorm_building;\nDELETE FROM student_profile;\nDELETE FROM sys_user;\n'; fi
   cat backend/src/main/resources/db/demo/accounts.sql
+  cat backend/src/main/resources/db/demo/housing.sql
   printf 'COMMIT;\n'
 } | docker compose --env-file deploy/.env -f deploy/compose.yaml exec -T mysql \
   sh -c 'MYSQL_PWD="$MYSQL_PASSWORD" exec mysql --default-character-set=utf8mb4 -u apartment_app "$1"' sh "$database"
-echo "Simulated accounts loaded into $database."
+echo "Simulated accounts and housing loaded into $database."

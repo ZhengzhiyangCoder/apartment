@@ -13,6 +13,9 @@ spring:
     locations: classpath:db/migration
   jackson:
     time-zone: Asia/Shanghai
+    deserialization:
+      accept-float-as-int: false
+      fail-on-numbers-for-enums: true
 server:
   address: 127.0.0.1
   port: ${APARTMENT_BACKEND_PORT:8081}

@@ -18,4 +18,7 @@ public interface AccountMapper {
 
     @Update("UPDATE sys_user SET password_hash = #{hash}, auth_version = auth_version + 1 WHERE id = #{id} AND auth_version = #{version} AND enabled = true")
     int changePassword(@Param("id") long id, @Param("version") long version, @Param("hash") String hash);
+
+    @Select("<script>SELECT id, username, enabled FROM sys_user WHERE id IN <foreach collection='ids' item='id' open='(' separator=',' close=')'>#{id}</foreach></script>")
+    java.util.List<AccountSummary> summaries(@Param("ids") java.util.List<Long> ids);
 }
