@@ -24,6 +24,7 @@ test('系统管理员创建账号，新账号可登录，重置密码后禁用�
   await page.getByRole('button', { name: '查询', exact: true }).click()
   const row = page.getByRole('row').filter({ hasText: username })
   await expect(row).toContainText('浏览器模拟学生')
+  await expect(page.getByRole('row')).toHaveCount(2)
   await page.screenshot({ path: `../output/playwright/task02-accounts-${page.viewportSize()!.width}.png`, fullPage: true, animations: 'disabled' })
   const other = await browser.newContext({ viewport: page.viewportSize()! })
   const student = await other.newPage()

@@ -76,3 +76,10 @@
 - [当前截图](../../output/playwright/)：task01- 前缀为实际应用；其他截图仍为原型历史产物，不混作业务验收。
 
 这些入口只登记本项目资产，不作为已验证的跨项目全局工具注册。其余功能按正式票推进。
+
+
+## 任务 02 账号管理交付
+
+- [正式任务 02](../../.scratch/dorm-management/issues/02-account-management.md)、[归档卡](../task-cards/completed/20261111-task02-implement.md)、[实现日志](../logs/20261111-task02-implement.md)、[双轴审查](../logs/20261111-task02-review.md)。
+- [接口](../../docs/api.md)、[数据库](../../docs/database.md)、[演示](../../docs/demo.md)、[测试证据](../../docs/testing.md)已扩展到 01–02。
+- [实际页面与弹窗截图](../../output/playwright/)：task02-accounts、task02-create、task02-disable 两种宽度；运行产物仅留本机，不进入 Git。

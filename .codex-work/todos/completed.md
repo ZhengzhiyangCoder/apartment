@@ -1,5 +1,10 @@
 # 已完成待办
 
+## 2026-11-11 任务 02 账号管理
+
+- [任务 02](../../.scratch/dorm-management/issues/02-account-management.md)已完成：创建、查询分页、角色变更、重置与启停、旧会话撤销、并发保护及同事务审计。
+- 全量 12 项 API/MySQL、22 项双尺寸浏览器及前后端构建通过，Standards / Spec 各 0 发现。见[实现日志](../logs/20261111-task02-implement.md)、[测试](../../docs/testing.md)、[审查](../logs/20261111-task02-review.md)与[归档卡](../task-cards/completed/20261111-task02-implement.md)。
+
 ## 2026-11-11 Git 与 GitHub 私有仓库
 
 - 按用户要求初始化本地 main，创建 [ZhengzhiyangCoder/apartment](https://github.com/ZhengzhiyangCoder/apartment) 私有仓库并推送初始提交；main 跟踪 origin/main。
