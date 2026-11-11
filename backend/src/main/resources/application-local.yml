@@ -1,0 +1,6 @@
+# Local HTTP is bound to loopback; do not expose this profile to a public network.
+server:
+  servlet:
+    session:
+      cookie:
+        secure: false

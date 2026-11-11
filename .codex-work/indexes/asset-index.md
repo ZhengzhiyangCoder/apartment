@@ -1,0 +1,76 @@
+# 项目资料索引
+
+核验日期：2026-11-11。以下是用户提供的业务讨论资料，原文件未修改；已于需求访谈启动时逐字节复制到项目 docs/reference/，项目副本供后续读取。微信原路径保留用于来源追溯。
+
+| 名称 | 入口 | 核验与限制 |
+|---|---|---|
+| PRD V1.2 | [/Users/iknow/Library/Containers/com.tencent.xinWeChat/Data/Documents/xwechat_files/wxid_9t386at625rc22_3a9a/temp/drag/高校宿舍管理系统_PRD_V1.2.md](/Users/iknow/Library/Containers/com.tencent.xinWeChat/Data/Documents/xwechat_files/wxid_9t386at625rc22_3a9a/temp/drag/高校宿舍管理系统_PRD_V1.2.md) | UTF-8，完整读取；含已确认决策、默认假设和技术建议 |
+| 数据库设计与 ER 图 V1.0 | [/Users/iknow/Library/Containers/com.tencent.xinWeChat/Data/Documents/xwechat_files/wxid_9t386at625rc22_3a9a/temp/drag/高校宿舍管理系统_数据库设计与ER图_V1.0.md](/Users/iknow/Library/Containers/com.tencent.xinWeChat/Data/Documents/xwechat_files/wxid_9t386at625rc22_3a9a/temp/drag/高校宿舍管理系统_数据库设计与ER图_V1.0.md) | UTF-8，完整读取；设计列 18 张表，未执行数据库验证 |
+
+工程配置复用来源：`/Users/iknow/.agents/skills/setup-matt-pocock-skills/` 下的 SKILL.md、issue-tracker-local.md、triage-labels.md、domain.md。已读取模板并应用用户批准配置；没有新增或登记全局复用资产。
+
+## 本项目配置与记录
+
+| 内容 | 入口 | 状态 |
+|---|---|---|
+| 项目协作规则 | [AGENTS.md](../../AGENTS.md) | 已批准并写入 |
+| 本地任务跟踪 | [issue-tracker.md](../../docs/agents/issue-tracker.md) | 已批准并写入 |
+| 默认分类标签 | [triage-labels.md](../../docs/agents/triage-labels.md) | 已批准并写入 |
+| 单领域文档规则 | [domain.md](../../docs/agents/domain.md) | 已批准并写入；领域文档按需建立 |
+| 配置任务卡 | [已完成任务](../task-cards/completed/20261111-engineering-skills-setup.md) | 已归档 |
+| 配置操作日志 | [日志](../logs/20261111-engineering-skills-setup.md) | 已记录验证与未同步事项 |
+
+## 原始资料项目副本
+
+- [高校宿舍管理系统_PRD_V1.2.md](../../docs/reference/高校宿舍管理系统_PRD_V1.2.md)
+  - 原始位置：`/Users/iknow/Library/Containers/com.tencent.xinWeChat/Data/Documents/xwechat_files/wxid_9t386at625rc22_3a9a/temp/drag/高校宿舍管理系统_PRD_V1.2.md`
+  - SHA-256：`86793f1a5597deb56d1628e597466788708689d47f2830091b5590c7aa0ea0a1`
+  - 状态：字节一致；讨论资料，不自动构成实施授权。
+- [高校宿舍管理系统_数据库设计与ER图_V1.0.md](../../docs/reference/高校宿舍管理系统_数据库设计与ER图_V1.0.md)
+  - 原始位置：`/Users/iknow/Library/Containers/com.tencent.xinWeChat/Data/Documents/xwechat_files/wxid_9t386at625rc22_3a9a/temp/drag/高校宿舍管理系统_数据库设计与ER图_V1.0.md`
+  - SHA-256：`f9c51d17076cae819a2fb3b51fa1d918d74714404b9b4ba0d6e7f74c010bf4af`
+  - 状态：字节一致；讨论资料，不自动构成实施授权。
+
+## 需求访谈产物
+
+- [业务词汇](../../CONTEXT.md)：依据用户已接受的附件基线创建，仅领域术语。
+- [已确认项目上下文](../context/project.md)：Codex 主导开发、无需工期和教学解释等用户偏好。
+- [开发确认稿](../drafts/20261111-development-agreement.md)：用户已接受的业务方案；最新执行顺序为先审核 Spec。
+- [已完成访谈任务](../task-cards/completed/20261111-requirements-grilling.md)：设计树、用户回答、确认结果与阶段调整。
+
+## 已确认工程设计
+
+- [工程结构 V1.0](../../docs/engineering-structure.md)、[已完成任务](../task-cards/completed/20261111-engineering-structure.md)、[讨论与定稿日志](../logs/20261111-engineering-structure.md)：单仓库、独立前后端、五业务模块与完整文件组织已确认；采用本机 Node/npm 前端、Java/Maven 后端及 Compose MySQL，仅本地运行。文档已定稿，未创建业务工程。
+
+## 已确认规格交付
+
+- [Spec 审核确认记录](../../.scratch/dorm-management/spec-review.md)：楼栋均分、跨方案维度分组、本地性能目标和“栖居 · 高校宿舍管理系统”名称均已确认，无剩余规格审核决策。
+- [开发规格 Spec V1.0](../../.scratch/dorm-management/spec.md)：用户确认完成并定稿，覆盖功能、规则、权限、验收与交付；正式实现尚未启动。
+- [已完成 Spec 审核任务](../task-cards/completed/20261111-spec-review.md)：审核结论与当前执行边界。
+- [Spec 日志](../logs/20261111-spec-review.md)：来源、验证与阶段记录。
+
+## 已批准开发任务
+
+- [任务总览 V1.0](../../.scratch/dorm-management/task-breakdown.md)：18 项任务的顺序、依赖、故事主责及验收分工；每项正式任务位于同功能的 `issues/`，由总览逐项链接。
+- [拆分任务卡](../task-cards/completed/20261111-task-breakdown.md)、[拆分日志](../logs/20261111-task-breakdown.md)：用户已批准，正式票已迁入 `issues/`，任务 01 已完成并验证；Spec 与工程结构未变。
+
+## 界面设计与原型
+
+最新状态（2026-11-11）：仅保留第一版 Neumorphism 作为界面设计基准，第二版及对比产物已按用户要求移除，见[选择记录](../logs/20261111-ui-selection.md)。Spec 已定稿，后续界面细化沿用第一版及已确认名称。
+
+- 用户原始设计要求：`/Users/iknow/Downloads/design.md`，UTF-8，浅色 Neumorphism 风格。
+- [设计附件副本](../../docs/reference/界面风格要求_Neumorphism.md)：与原件逐字节一致，SHA-256 `709dbf9a036ad69f0e7803e6e932a04909bad3365e9ede40dd5a1908cca1bd88`。
+- [HTML 原型 V0.1](../../prototypes/dorm-management/index.html)：四角色、四工作区、页面内交互模拟；已选定的唯一界面基准。
+- [原型说明](../../prototypes/dorm-management/README.md)：设计规格、覆盖范围、审阅路径、实际检查和未实现边界。
+- [原型任务卡](../task-cards/active/20261111-ui-prototype.md)、[原型日志](../logs/20261111-ui-prototype.md)。
+- [浏览器截图](../../output/playwright/)：两种目标桌面尺寸的工作台、评分、学生主页及报修流程截图。
+
+
+## 任务 01 实际工程与交付
+
+- [项目 README](../../README.md)、[本地运行](../../docs/local-run.md)、[接口](../../docs/api.md)、[实际数据库](../../docs/database.md)、[模拟演示账号](../../docs/demo.md)。
+- [测试记录](../../docs/testing.md)：6 项 API/MySQL、14 项双尺寸浏览器场景、真实迁移/重启与数据库故障反馈。
+- [任务 01](../../.scratch/dorm-management/issues/01-local-login.md)、[归档卡](../task-cards/completed/20261111-task01-implement.md)、[实现日志](../logs/20261111-task01-implement.md)、[双轴审查](../logs/20261111-task01-review.md)。
+- [当前截图](../../output/playwright/)：task01- 前缀为实际应用；其他截图仍为原型历史产物，不混作业务验收。
+
+这些入口只登记本项目资产，不作为已验证的跨项目全局工具注册。其余功能按正式票推进。

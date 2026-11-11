@@ -1,0 +1,8 @@
+spring:
+  datasource:
+    url: jdbc:mysql://127.0.0.1:${APARTMENT_DB_PORT:3308}/apartment_test?connectionTimeZone=Asia/Shanghai&forceConnectionTimeZoneToSession=true&allowPublicKeyRetrieval=true&sslMode=DISABLED
+server:
+  servlet:
+    session:
+      cookie:
+        secure: false

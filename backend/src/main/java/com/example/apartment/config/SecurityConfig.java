@@ -1,0 +1,71 @@
+package com.example.apartment.config;
+
+import com.example.apartment.common.ApiError;
+import com.example.apartment.modules.identity.AccountMapper;
+import com.example.apartment.modules.identity.AccountPrincipal;
+import com.example.apartment.modules.identity.IdentityService;
+import com.example.apartment.modules.identity.SessionAccountFilter;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import jakarta.servlet.DispatcherType;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
+import org.springframework.security.config.Customizer;
+import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
+import org.springframework.security.authentication.AuthenticationServiceException;
+import org.springframework.security.core.userdetails.UserDetailsService;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.context.SecurityContextHolderFilter;
+
+@Configuration
+public class SecurityConfig {
+    @Bean PasswordEncoder passwordEncoder() { return new BCryptPasswordEncoder(12); }
+
+    @Bean UserDetailsService userDetailsService(AccountMapper accounts) {
+        return username -> {
+            var account = accounts.findByUsername(username);
+            if (account == null) throw new UsernameNotFoundException("账号或密码错误");
+            return new AccountPrincipal(account);
+        };
+    }
+
+    @Bean SecurityFilterChain securityFilterChain(HttpSecurity http, ObjectMapper json, IdentityService identity) throws Exception {
+        return http
+            .addFilterAfter(new SessionAccountFilter(identity, json), SecurityContextHolderFilter.class)
+            .csrf(Customizer.withDefaults())
+            .requestCache(AbstractHttpConfigurer::disable)
+            .httpBasic(AbstractHttpConfigurer::disable)
+            .authorizeHttpRequests(auth -> auth
+                .dispatcherTypeMatchers(DispatcherType.ERROR).permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/auth/csrf").permitAll()
+                .requestMatchers(HttpMethod.POST, "/api/auth/login").permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/auth/me", "/api/identity/workspaces/*").authenticated()
+                .requestMatchers(HttpMethod.POST, "/api/auth/password").authenticated()
+                .anyRequest().denyAll())
+            .formLogin(form -> form.loginProcessingUrl("/api/auth/login")
+                .successHandler((request, response, authentication) -> {
+                    response.setContentType("application/json;charset=UTF-8");
+                    response.getWriter().write("{\"message\":\"登录成功\"}");
+                })
+                .failureHandler((request, response, exception) -> {
+                    if (exception instanceof AuthenticationServiceException) {
+                        ApiError.write(json, response, 500, "SERVER_ERROR", "服务暂时不可用，请稍后重试");
+                    } else {
+                        ApiError.write(json, response, 401, "INVALID_CREDENTIALS", "账号或密码错误，或账号已停用");
+                    }
+                }))
+            .logout(logout -> logout.logoutUrl("/api/auth/logout")
+                .deleteCookies("APARTMENTSESSION")
+                .logoutSuccessHandler((request, response, authentication) -> response.setStatus(204)))
+            .exceptionHandling(errors -> errors
+                .authenticationEntryPoint((request, response, exception) ->
+                    ApiError.write(json, response, 401, "UNAUTHENTICATED", "请先登录"))
+                .accessDeniedHandler((request, response, exception) ->
+                    ApiError.write(json, response, 403, "FORBIDDEN", "没有操作权限或安全校验已失效，请刷新后重试")))
+            .build();
+    }
+}
