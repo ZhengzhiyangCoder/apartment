@@ -38,6 +38,7 @@ async function submit() {
         <div class="field"><label for="login-password">密码</label><ElInput id="login-password" v-model="password" type="password" show-password autocomplete="current-password" placeholder="请输入密码" :maxlength="64" required :disabled="busy" /></div>
         <p v-if="error" class="message error" role="alert">{{ error }}</p>
         <p v-if="route.query.changed" class="message success" role="status">密码已更新，请使用新密码登录。</p>
+        <p v-if="route.query.accountChanged" class="message success" role="status">账号状态或权限已更新，请重新登录。</p>
         <ElButton class="login-submit" native-type="submit" :loading="busy" :disabled="busy">登录 <AppIcon name="arrow" /></ElButton>
       </form>
       <p class="login-help"><AppIcon name="shield" />账号由系统管理员创建。<br />忘记密码时，请联系系统管理员。</p>

@@ -5,6 +5,7 @@ import ProfilePage from '../features/identity/ProfilePage.vue'
 import WorkspacePage from '../features/identity/WorkspacePage.vue'
 import PasswordPage from '../features/identity/PasswordPage.vue'
 import AccessPage from '../features/identity/AccessPage.vue'
+import AccountsPage from '../features/identity/AccountsPage.vue'
 import AppLayout from '../layouts/AppLayout.vue'
 
 export const router = createRouter({
@@ -16,6 +17,7 @@ export const router = createRouter({
       { path: 'workspace/:role', component: WorkspacePage },
       { path: 'profile', component: ProfilePage },
       { path: 'password', component: PasswordPage },
+      { path: 'accounts', component: AccountsPage, meta: { role: 'SYSTEM_ADMIN' } },
       { path: 'forbidden', component: AccessPage },
       { path: ':pathMatch(.*)*', component: AccessPage },
     ] },
@@ -29,5 +31,6 @@ router.beforeEach(async (to) => {
   if (to.path === '/' && currentUser.value) return workspacePath()
   if (to.path === '/login' && currentUser.value) return workspacePath()
   if (to.params.role && to.params.role !== currentUser.value?.role) return '/forbidden'
+  if (to.meta.role && to.meta.role !== currentUser.value?.role) return '/forbidden'
   return true
 })

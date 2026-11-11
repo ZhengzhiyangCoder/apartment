@@ -45,6 +45,10 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.POST, "/api/auth/login").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/auth/me", "/api/identity/workspaces/*").authenticated()
                 .requestMatchers(HttpMethod.POST, "/api/auth/password").authenticated()
+                .requestMatchers(HttpMethod.GET, "/api/identity/accounts").hasRole("SYSTEM_ADMIN")
+                .requestMatchers(HttpMethod.POST, "/api/identity/accounts").hasRole("SYSTEM_ADMIN")
+                .requestMatchers(HttpMethod.POST, "/api/identity/accounts/*/role", "/api/identity/accounts/*/enabled",
+                        "/api/identity/accounts/*/reset-password").hasRole("SYSTEM_ADMIN")
                 .anyRequest().denyAll())
             .formLogin(form -> form.loginProcessingUrl("/api/auth/login")
                 .successHandler((request, response, authentication) -> {

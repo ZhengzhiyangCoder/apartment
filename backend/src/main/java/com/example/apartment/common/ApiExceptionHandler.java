@@ -1,6 +1,7 @@
 package com.example.apartment.common;
 
 import jakarta.validation.ConstraintViolationException;
+import org.springframework.dao.ConcurrencyFailureException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
@@ -34,9 +35,14 @@ public class ApiExceptionHandler {
     ResponseEntity<ApiError> notFound(NoResourceFoundException error) {
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(new ApiError("NOT_FOUND", "请求的内容不存在"));
     }
+    @ExceptionHandler(ConcurrencyFailureException.class)
+    ResponseEntity<ApiError> conflict(ConcurrencyFailureException error) {
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(new ApiError("CONCURRENT_CHANGE", "账号正在被其他操作更新，请刷新后重试"));
+    }
     @ExceptionHandler(Exception.class)
     ResponseEntity<ApiError> unexpected(Exception error) {
-        log.error("Unexpected request failure", error);
+        // SQL/validation exception messages can include bound values; never log credential-bearing payloads.
+        log.error("Unexpected request failure ({})", error.getClass().getSimpleName());
         return ResponseEntity.internalServerError().body(new ApiError("SERVER_ERROR", "服务暂时不可用，请稍后重试"));
     }
 }

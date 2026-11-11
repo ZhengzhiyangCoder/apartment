@@ -12,7 +12,7 @@ elif [[ $# -ne 0 ]]; then
 fi
 {
   printf 'START TRANSACTION;\n'
-  if [[ "$reset" == true ]]; then printf 'DELETE FROM sys_user;\n'; fi
+  if [[ "$reset" == true ]]; then printf 'DELETE FROM operation_log;\nDELETE FROM sys_user;\n'; fi
   cat backend/src/main/resources/db/demo/accounts.sql
   printf 'COMMIT;\n'
 } | docker compose --env-file deploy/.env -f deploy/compose.yaml exec -T mysql \

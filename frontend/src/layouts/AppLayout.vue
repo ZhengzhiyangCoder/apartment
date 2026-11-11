@@ -20,6 +20,7 @@ async function signOut() {
       <RouterLink :to="workspacePath()" class="brand" aria-label="栖居首页"><span class="brand-symbol"><AppIcon name="building" /></span><span><b>栖居</b><small>高校宿舍管理系统</small></span></RouterLink>
       <p class="nav-label">个人空间</p>
       <nav aria-label="主要导航">
+        <RouterLink v-if="currentUser.role === 'SYSTEM_ADMIN'" to="/accounts" class="nav-item"><AppIcon name="user" />账号管理</RouterLink>
         <RouterLink :to="workspacePath()" class="nav-item"><AppIcon name="home" />个人工作台</RouterLink>
         <RouterLink to="/profile" class="nav-item"><AppIcon name="user" />个人资料</RouterLink>
         <RouterLink to="/password" class="nav-item"><AppIcon name="key" />修改密码</RouterLink>

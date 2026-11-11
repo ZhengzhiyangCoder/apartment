@@ -678,3 +678,41 @@ button {
     scroll-behavior:auto!important
   }
 }
+
+/* Account management follows the approved gray-blue surface and soft shadows. */
+.sr-only { position:absolute; width:1px; height:1px; overflow:hidden; clip-path:inset(50%); white-space:nowrap }
+.account-heading { display:flex; align-items:center; justify-content:space-between; gap:24px }
+.account-card { padding:28px }
+.account-filters { display:flex; align-items:end; gap:20px; margin-bottom:24px; flex-wrap:wrap }
+.account-filters .search-field { flex:1; min-width:200px }
+.account-filters .field { min-width:140px }
+.account-filters .el-button { height:44px }
+.account-card select,.account-dialog select { min-height:44px; padding:10px 16px; border:0; border-radius:12px; background:var(--base); color:inherit; box-shadow:var(--pressed); font:inherit }
+.account-card select:focus-visible,.account-dialog select:focus-visible { outline:2px solid var(--primary); outline-offset:2px }
+.account-table-wrap { overflow-x:auto; margin-top:16px }
+.account-table { width:100%; border-collapse:collapse; text-align:left; table-layout:fixed }
+.account-table th { font-weight:500; color:var(--muted); padding:14px 16px; border-bottom:1px solid #c7ced8 }
+.account-table td { padding:19px 16px; border-bottom:1px solid #cbd2dc; overflow-wrap:anywhere }
+.account-table th:first-child { width:33% }
+.account-table th:last-child { width:32% }
+.account-table b { font-weight:500 }
+.account-name { display:block; margin-top:6px; color:var(--muted); font-size:12px }
+.account-status { color:#28776b; background:#d2e4df; padding:6px 12px; border-radius:10px; white-space:nowrap; font-size:12px }
+.account-status.inactive { color:#7b6268; background:#e0d6da }
+.account-actions { display:flex; flex-wrap:wrap; gap:8px 16px }
+.account-actions button { border:0; background:none; color:var(--primary); padding:6px 0; font-size:12px }
+.account-actions button.danger { color:#a04a57 }
+.account-actions button:disabled { opacity:.5; cursor:wait }
+.account-empty { text-align:center; padding:40px 16px; color:var(--muted) }
+.account-pagination { display:flex; justify-content:space-between; align-items:center; gap:16px; margin-top:24px; color:var(--muted); font-size:12px }
+.account-pagination>div { display:flex; align-items:center; gap:16px }
+.account-pagination select { margin:0 8px; min-height:36px; padding:6px 12px }
+.account-dialog.el-dialog { border-radius:24px; padding:28px 32px; background:var(--base); max-height:90vh; overflow-y:auto; margin-top:5vh }
+.account-dialog .el-dialog__title { font-size:22px; font-weight:500 }
+.account-dialog .form-stack { gap:20px; margin-top:12px }
+.account-dialog .el-dialog__headerbtn { top:8px; right:8px }
+@media (max-width:1400px) {
+  .account-table td,.account-table th { padding-left:10px; padding-right:10px }
+  .account-card { padding:24px }
+  .account-filters { gap:16px }
+}
