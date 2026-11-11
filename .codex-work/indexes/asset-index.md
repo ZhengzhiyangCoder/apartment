@@ -11,6 +11,8 @@
 
 ## 本项目配置与记录
 
+版本库：[GitHub 私有仓库 ZhengzhiyangCoder/apartment](https://github.com/ZhengzhiyangCoder/apartment)，本地 main 跟踪 origin/main，已完成初始推送；见[建立日志](../logs/20261111-git-github.md)与[归档任务卡](../task-cards/completed/20261111-git-github.md)。环境凭据及运行产物仅保留本机。
+
 | 内容 | 入口 | 状态 |
 |---|---|---|
 | 项目协作规则 | [AGENTS.md](../../AGENTS.md) | 已批准并写入 |

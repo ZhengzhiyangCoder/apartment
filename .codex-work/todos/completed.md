@@ -1,5 +1,10 @@
 # 已完成待办
 
+## 2026-11-11 Git 与 GitHub 私有仓库
+
+- 按用户要求初始化本地 main，创建 [ZhengzhiyangCoder/apartment](https://github.com/ZhengzhiyangCoder/apartment) 私有仓库并推送初始提交；main 跟踪 origin/main。
+- 凭据、依赖及运行产物排除已验证，本地与远端提交一致。见[归档卡](../task-cards/completed/20261111-git-github.md)与[日志](../logs/20261111-git-github.md)。
+
 ## 2026-11-11 正式票发布与任务 01
 
 - 用户认可18项拆分及依赖，已迁入正式 issues；拆分任务归档。

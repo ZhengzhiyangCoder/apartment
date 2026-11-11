@@ -2,6 +2,8 @@
 
 中文电脑端高校宿舍管理系统，本科毕设项目。按[Spec V1.0](.scratch/dorm-management/spec.md)和[工程结构](docs/engineering-structure.md)实现；[18 项正式任务](.scratch/dorm-management/task-breakdown.md)已批准，任务 01（本地运行、四角色登录、个人资料与改密）已完成并验证。后续业务尚未交付。
 
+私有仓库：[ZhengzhiyangCoder/apartment](https://github.com/ZhengzhiyangCoder/apartment)，默认分支 `main`。真实环境配置与运行产物不纳入版本控制，首次运行请生成本机配置。
+
 ## 本地启动
 
 环境：Java 17、Node 22.12+、Docker Compose、Python 3。后端使用 Maven Wrapper；本项目只在本机回环地址运行。

@@ -10,7 +10,8 @@
 - 已确认项目上下文：[project.md](context/project.md)
 - 当前待办：[current.md](todos/current.md)
 - 完成归档：[completed.md](todos/completed.md)
-- 本轮完成：[任务 01：本地运行与四角色登录](task-cards/completed/20261111-task01-implement.md)
+- 本轮完成：[Git 与 GitHub 私有仓库](task-cards/completed/20261111-git-github.md)，[远端仓库](https://github.com/ZhengzhiyangCoder/apartment)（main）
+- 最近开发完成：[任务 01：本地运行与四角色登录](task-cards/completed/20261111-task01-implement.md)
 - 下一任务：[02 账号管理](../.scratch/dorm-management/issues/02-account-management.md)（前置 01 已完成）
 - 已批准拆分：[拆分归档](task-cards/completed/20261111-task-breakdown.md)（18 项正式票已发布）
 - 开发任务：[18 项正式任务总览](../.scratch/dorm-management/task-breakdown.md)（单项正文、依赖、故事及验收映射）
@@ -21,7 +22,7 @@
 - 规格确认记录：[审核结论](../.scratch/dorm-management/spec-review.md)（全部审核项已确认，V1.0 已定稿）
 - 已完成访谈：[需求校核](task-cards/completed/20261111-requirements-grilling.md)
 - 已完成任务：[Spec 审核与定稿](task-cards/completed/20261111-spec-review.md)、[工程结构定稿](task-cards/completed/20261111-engineering-structure.md)、[工程技能配置](task-cards/completed/20261111-engineering-skills-setup.md)
-- 最近日志：[任务 01 实现](logs/20261111-task01-implement.md)、[双轴审查](logs/20261111-task01-review.md)
+- 最近日志：[Git 与 GitHub 建立](logs/20261111-git-github.md)、[任务 01 实现](logs/20261111-task01-implement.md)、[双轴审查](logs/20261111-task01-review.md)
 - 运行与验证：[本地运行](../docs/local-run.md)、[模拟账号](../docs/demo.md)、[测试证据](../docs/testing.md)
 - 工程定稿：[工程结构讨论与定稿](logs/20261111-engineering-structure.md)
 - 界面选择：[选定第一版](logs/20261111-ui-selection.md)
