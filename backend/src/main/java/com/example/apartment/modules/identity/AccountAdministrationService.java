@@ -17,9 +17,10 @@ public class AccountAdministrationService {
     private final PasswordEncoder passwords;
     private final AuditWriter audit;
     private final StudentProfileReferences studentProfiles;
+    private final AccountAccess access;
     public AccountAdministrationService(AccountAdministrationMapper management, AccountMapper accounts,
-            PasswordEncoder passwords, AuditWriter audit, StudentProfileReferences studentProfiles) {
-        this.management = management; this.accounts = accounts; this.passwords = passwords; this.audit = audit; this.studentProfiles = studentProfiles;
+            PasswordEncoder passwords, AuditWriter audit, StudentProfileReferences studentProfiles, AccountAccess access) {
+        this.management = management; this.accounts = accounts; this.passwords = passwords; this.audit = audit; this.studentProfiles = studentProfiles; this.access = access;
     }
 
     @Transactional(readOnly = true)
@@ -35,8 +36,7 @@ public class AccountAdministrationService {
     public AccountView create(AccountPrincipal actor, AccountRequests.Create input) {
         validatePassword(input.password());
         String hash = passwords.encode(input.password());
-        management.lockEnabledAdministrators();
-        requireAdministrator(actor);
+        access.lockAdministrator(actor);
         try {
             management.create(input.username(), input.displayName().strip(), input.role(), hash);
         } catch (DuplicateKeyException error) {
@@ -80,8 +80,7 @@ public class AccountAdministrationService {
     private UserAccount lockTarget(AccountPrincipal actor, long id, long version) {
         // Serialize administrator mutations before locking the target; two concurrent demotions
         // must not both observe another available administrator.
-        management.lockEnabledAdministrators();
-        requireAdministrator(actor);
+        access.lockAdministrator(actor);
         var target = accounts.lockById(id);
         if (target == null) throw new ApiException(HttpStatus.NOT_FOUND, "ACCOUNT_NOT_FOUND", "账号不存在，请刷新列表");
         if (target.authVersion() != version) {
@@ -100,13 +99,6 @@ public class AccountAdministrationService {
         var after = AccountView.of(accounts.findById(before.id()));
         audit.record(actor.id(), action, "ACCOUNT", before.id(), AccountView.of(before), after);
         return after;
-    }
-
-    private void requireAdministrator(AccountPrincipal principal) {
-        var actor = accounts.findById(principal.id());
-        if (actor == null || !actor.enabled() || actor.role() != Role.SYSTEM_ADMIN || actor.authVersion() != principal.authVersion()) {
-            throw new ApiException(HttpStatus.UNAUTHORIZED, "UNAUTHENTICATED", "账号权限已变化，请重新登录");
-        }
     }
 
     private void validatePassword(String password) {
