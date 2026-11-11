@@ -1,5 +1,10 @@
 # 已完成待办
 
+## 2026-11-11 任务 03 住宿基础资料
+
+- [任务 03](../../.scratch/dorm-management/issues/03-housing-catalog.md)已完成：楼栋、寝室、床位、学生资料的实际持久化、分页、表单、启停、账号一致性与事务审计。
+- 20 项全量 API/MySQL、30 项双尺寸浏览器及前后端构建通过，审查建议已修正并复核，无剩余发现。见[实现日志](../logs/20261111-task03-implement.md)、[测试](../../docs/testing.md)、[审查](../logs/20261111-task03-review.md)、[归档卡](../task-cards/completed/20261111-task03-implement.md)。
+
 ## 2026-11-11 任务 02 账号管理
 
 - [任务 02](../../.scratch/dorm-management/issues/02-account-management.md)已完成：创建、查询分页、角色变更、重置与启停、旧会话撤销、并发保护及同事务审计。

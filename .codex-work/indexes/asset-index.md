@@ -83,3 +83,11 @@
 - [正式任务 02](../../.scratch/dorm-management/issues/02-account-management.md)、[归档卡](../task-cards/completed/20261111-task02-implement.md)、[实现日志](../logs/20261111-task02-implement.md)、[双轴审查](../logs/20261111-task02-review.md)。
 - [接口](../../docs/api.md)、[数据库](../../docs/database.md)、[演示](../../docs/demo.md)、[测试证据](../../docs/testing.md)已扩展到 01–02。
 - [实际页面与弹窗截图](../../output/playwright/)：task02-accounts、task02-create、task02-disable 两种宽度；运行产物仅留本机，不进入 Git。
+
+
+## 任务 03 住宿基础资料交付
+
+- [正式任务 03](../../.scratch/dorm-management/issues/03-housing-catalog.md)、[归档卡](../task-cards/completed/20261111-task03-implement.md)、[实现日志](../logs/20261111-task03-implement.md)、[双轴审查](../logs/20261111-task03-review.md)。
+- [接口](../../docs/api.md)、[数据库](../../docs/database.md)、[演示](../../docs/demo.md)、[测试证据](../../docs/testing.md)扩展到 01–03；20 项 API/MySQL、30 项双尺寸浏览器通过。
+- 实际迁移 V3–V5，模拟资料脚本为 backend/src/main/resources/db/demo/housing.sql；[截图](../../output/playwright/) task03-rooms、room-conflict、student-form、students，两种宽度；运行产物留本机。
+- 沿用既有项目脚本，不安装或注册新的跨项目资产。此前各章节“未实现”等为定稿阶段历史，当前实现以本节和项目上下文为准。

@@ -1,6 +1,6 @@
-# 测试与验收记录 — 任务 01–02
+# 测试与验收记录 — 任务 01–03
 
-日期：2026-11-11（Asia/Shanghai）。任务 01–02 验证完成；后续业务及整套系统验收尚未完成。
+日期：2026-11-11（Asia/Shanghai）。任务 01–03 验证完成；后续业务及整套系统验收尚未完成。
 
 ## 边界与隔离
 
@@ -16,7 +16,7 @@ API 测试位于后端 IdentityHttpTest，运行前核对数据库产品为 MySQ
 | 本人角色入口、越权拒绝 | 本人入口预期 200，实际 404 | 通过 |
 | 改密持久化与旧会话撤销 | 改密校验预期 400，实际 404 | 通过 |
 
-当前 6 项 API 测试通过，涵盖四角色、禁用/错误账号、会话与 CSRF 轮换、HttpOnly Cookie、退出旧 Cookie 重放、角色参数篡改、改密非法输入和旧会话撤销。初始 Flyway 迁移已在真实 MySQL 8.4 的干净 apartment_test 执行。
+任务 01 当时 6 项 API 测试通过，涵盖四角色、禁用/错误账号、会话与 CSRF 轮换、HttpOnly Cookie、退出旧 Cookie 重放、角色参数篡改、改密非法输入和旧会话撤销。初始 Flyway 迁移已在真实 MySQL 8.4 的干净 apartment_test 执行。
 
 ## 最终验证结果
 
@@ -52,18 +52,22 @@ API 测试位于后端 IdentityHttpTest，运行前核对数据库产品为 MySQ
 - [双轴审查](../.codex-work/logs/20261111-task02-review.md)：Standards 0 项，Spec 0 项，固定差异 19077d3...6ff2716。
 - [界面证据](../output/playwright/)：task02-accounts、task02-create、task02-disable，1366 与 1920 两种宽度；已查看列表、错误保留输入与确认窗口，目标尺寸下操作无影响性遮挡或横向溢出。截图等待查询完成后另选择性复测 2 项生命周期场景通过（`.runtime/task02-screenshots-final.log`），不改变功能代码，不重复计算独立场景数；HTML 报告为最近这次选择性运行，全量结果保留于上述日志。
 
-任务 02 的 6 条准则已完成，覆盖 US-03 及 AC-01/22/23 的本任务部分。当前没有住宿/工单/卫生表，后续引入业务时的停用限制仍由 04/05/06/08/13 实现；全系统审计查询由 15 交付，不把本轮记录能力当作已完成查询功能。性能与其他环境边界仍如前述。
+任务 02 的 6 条准则已完成，覆盖 US-03 及 AC-01/22/23 的本任务部分。任务 02 完成时尚无住宿/工单/卫生表；任务 03 的后续增量见下节，未来引入业务时的停用限制仍由 04/05/06/08/13 实现；全系统审计查询由 15 交付，不把本轮记录能力当作已完成查询功能。性能与其他环境边界仍如前述。
 
-## 任务 03 当前验证
+## 任务 03 最终验证
 
 新增 HousingHttpTest 通过公开接口验证楼栋、寝室、床位、学生资料；共用 HttpIntegrationTest 仅复用既有登录、CSRF、请求与隔离准备。保留原 IdentityHttpTest 的 12 项测试正文。资料列表用于验证持久化；针对审计存储契约检查 actor、时间和前后快照，不检查私有方法调用。
 
-- `./scripts/backend.sh -B verify`：**20 项通过**（原 12 + 住宿 8），JAR 构建通过。证据 `.runtime/task03-backend-final.log`。
+- `./scripts/backend.sh -B verify`：**20 项通过**（原 12 + 住宿 8），JAR 构建通过。原始证据 `.runtime/task03-backend-final.log`；审查修正后再次 20 项通过，最终证据 `.runtime/task03-backend-review-fix.log`。
 - `npm --prefix frontend run build`：类型检查与构建通过。证据 `.runtime/task03-frontend-build.log`。
-- `npm --prefix frontend run test:e2e -- housing.spec.ts`：两种目标尺寸 **8 项通过**。证据 `.runtime/task03-housing-browser-fixed.log`。全量浏览器回归尚在进行。
+- `npm --prefix frontend run test:e2e -- housing.spec.ts`：两种目标尺寸 **8 项通过**。证据 `.runtime/task03-housing-browser-fixed.log`。全量浏览器原始 30 项通过（.runtime/task03-browser-final.log），审查修正后再次 **30 项通过**，最终证据 `.runtime/task03-browser-review-fix.log`。三份结果不重复累计为更多场景。
 - 8 项住宿接口场景涵盖四类资料维护与分页、父级启停、账号关联及角色一致性、权限和 CSRF/无硬删除、非法输入、审计故障整体回滚、并发房号/床号/版本/角色竞争、审计操作者及前后数据。
 - 审计故障测试仅在 apartment_test 清理准备阶段审计，再添加拒绝新住房审计的 CHECK：四类资料各自创建/编辑/停用共 12 次真实写入均报安全 500，列表内容、状态、版本和日志数量保持不变，finally 移除 CHECK。
 - 新建楼栋、寝室床位、学生资料接口红测 403 → 通过；页面入口缺失 → 完整维护通过；小数楼层 1.5 原被转换为 1 → 改为 400。浏览器登录/退出等待不足产生的 401/超时已修正测试同步，不将其当产品功能缺陷。
 - [截图](../output/playwright/) task03-rooms、room-conflict、student-form、students，两种宽度，共 8 张；已查看寝室查询、重复房号反馈、学生表单失败保留内容及学籍列表。长表单允许对话框内滚动，保存与取消实际点击通过，无页面横向溢出。
 
 本轮覆盖 US-04/05/06 和任务 03 对 AC-02/22/23 的分工；不宣称入住/历史流转、后续业务关联限制、全系统审计查询或性能验收完成。新增数据库结构以 V3–V5 迁移为准；不改 V1/V2、已定稿 Spec、工程结构或第一版原型。
+
+- [独立审查](../.codex-work/logs/20261111-task03-review.md)：Standards 原 0 硬违规、1 项 P3 复用建议，已在 3c31667 修正并复核；Spec 原始与复核均 0；无剩余发现。
+- 演示库原地 V2→V5 成功；显式 seed 后有 2 楼栋/3 寝室/6 床位/1 学生资料，4 个原演示账号保留。重复 seed 的 API 内容完全相同，最终后端重启后也保留；5174 代理登录与查询通过。证据 `.runtime/task03-demo-check.json`、`.runtime/task03-demo-final.json`。
+- 任务 03 六条准则已闭环；联合账号/学籍创建未提供，其条件项不适用。未启动任务 04。全系统与其他环境边界保持前述。
