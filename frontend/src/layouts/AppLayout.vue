@@ -22,6 +22,8 @@ async function signOut() {
       <nav aria-label="主要导航">
         <RouterLink v-if="currentUser.role === 'SYSTEM_ADMIN'" to="/accounts" class="nav-item"><AppIcon name="user" />账号管理</RouterLink>
         <RouterLink v-if="['SYSTEM_ADMIN', 'DORM_MANAGER'].includes(currentUser.role)" to="/housing" class="nav-item"><AppIcon name="building" />住宿管理</RouterLink>
+        <RouterLink v-if="currentUser.role === 'SYSTEM_ADMIN'" to="/residencies" class="nav-item"><AppIcon name="building" />入住办理</RouterLink>
+        <RouterLink v-if="currentUser.role === 'STUDENT'" to="/my-residency" class="nav-item"><AppIcon name="building" />我的住宿</RouterLink>
         <RouterLink :to="workspacePath()" class="nav-item"><AppIcon name="home" />个人工作台</RouterLink>
         <RouterLink to="/profile" class="nav-item"><AppIcon name="user" />个人资料</RouterLink>
         <RouterLink to="/password" class="nav-item"><AppIcon name="key" />修改密码</RouterLink>

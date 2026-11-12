@@ -1,4 +1,4 @@
-# 接口说明 — 任务 01–03
+# 接口说明 — 任务 01–04
 
 所有路径从前端同源入口的 `/api` 访问。Session Cookie 名称为 `APARTMENTSESSION`，不与同机其他项目的默认 Cookie 混用。JSON 查询不返回密码、密码哈希或内部会话字段。
 
@@ -37,7 +37,7 @@
 
 角色、密码和启停实际改变后增加版本，旧会话在下一次请求被拒绝并需重新登录；新登录按当前角色授权。禁止停用或降级最后一个启用的系统管理员，返回 409 LAST_ADMINISTRATOR 并提示先创建或启用另一管理员。并发冲突不得留下部分写入。
 
-账号操作与审计快照同事务。已关联学生资料的账号不能改为非学生角色，返回 409 STUDENT_PROFILE_LINKED；停用保留关联资料与身份。当前没有入住/报修/卫生记录，后续任务引入当前入住/未完业务时补齐关联停用检查。审计查询页面与通用查询 API 归任务 15。
+账号操作与审计快照同事务。已关联学生资料的账号不能改为非学生角色，返回 409 STUDENT_PROFILE_LINKED；停用保留关联资料与身份。已有当前入住时禁止停用账号；报修/卫生未完业务的检查随对应任务接入。审计查询页面与通用查询 API 归任务 15。
 
 实际测试证据见 [testing.md](testing.md)。
 
@@ -50,14 +50,40 @@
 | /api/housing/beds | q 匹配床号/房号/楼栋名；buildingId/roomId/enabled/page/size | roomId/bedNo | bedNo/version |
 | /api/housing/students | q 匹配学号/姓名/学院/班级；enabled/page/size | userId/studentNo/fullName/college/major/className | studentNo/fullName/college/major/className/version |
 
-每个集合：GET 为分页列表，POST 创建成功 201，POST `/{id}` 编辑成功 200，POST `/{id}/enabled` 接收 `{enabled,version}` 启停成功 200。所有写入仅系统管理员，必须有 CSRF；楼栋/寝室/床位 GET 还允许宿舍管理员只读，学生列表 GET 仅系统管理员。学生、维修人员无全体住宿或学籍查询权限；本任务不提供学生自己的住宿查询，该路径归任务 04。没有 DELETE。
+每个集合：GET 为分页列表，POST 创建成功 201，POST `/{id}` 编辑成功 200，POST `/{id}/enabled` 接收 `{enabled,version}` 启停成功 200。所有写入仅系统管理员，必须有 CSRF；楼栋/寝室/床位 GET 还允许宿舍管理员只读，学生列表 GET 仅系统管理员。学生、维修人员无全体住宿或学籍查询权限；学生本人住宿由下节任务 04 接口提供。没有 DELETE。
 
 分页默认 page=1/size=10，最多 100；q 最多 64 字，字面包含匹配且区分大小写，固定 id 倒序。不接受动态 SQL 排序或调用者身份。筛选 enabled 指资料自身状态；寝室/床位另返回 buildingEnabled/roomEnabled 说明父级状态。传入的查询 ID 必须为正整数；不把浮点数截断成 ID/楼层/version，角色不接受数字枚举序号。
 
 必填字段均不可空白：楼栋名、学生姓名、学院、专业、班级最多 64 字；房号、床位号、学号最多 32 字；楼层为 1–100 整数。保存去除首尾空白。楼栋名全局唯一，同楼栋房号、同寝室床号、学号、学生账号绑定分别唯一；重复返回 409 HOUSING_DUPLICATE。父级和账号绑定创建后固定，编辑请求只消费上表列出的可写字段。学生姓名为学籍姓名，账号 displayName 仍是身份模块展示名，不以学籍编辑静默改写账号。
 
-目标不存在返回 404 HOUSING_NOT_FOUND；父级不存在同样返回 404。新建/启用寝室需楼栋启用，新建/启用床位需寝室与楼栋均启用，否则 409 PARENT_DISABLED。停用父级保留子记录及其自身状态，不级联删除或自动改启停。没有当前入住与未完业务的停用可以执行；04/05/08/13 将在引入相关事实时扩展检查。
+目标不存在返回 404 HOUSING_NOT_FOUND；父级不存在同样返回 404。新建/启用寝室需楼栋启用，新建/启用床位需寝室与楼栋均启用，否则 409 PARENT_DISABLED。停用父级保留子记录及其自身状态，不级联删除或自动改启停。当前入住的楼栋、寝室、床位以及学生资料均禁止停用；05/08/13 引入未完业务时继续扩展检查。
 
 学生资料只能关联一个已启用 STUDENT 账号，重复绑定拒绝；账号不存在返回 404 ACCOUNT_NOT_FOUND，角色/状态不符返回 409 STUDENT_ACCOUNT_REQUIRED。资料停用不等于禁用登录账号；重新启用资料需账号为已启用学生。列表通过 identity 受控批量查询补充 username/accountEnabled，不保存第二套角色或密码。不提供账号与学籍联合创建；先创建账号，再建立资料，两步有独立明确结果。
 
 编辑与启停使用列表返回的 version；过期返回 409 HOUSING_CHANGED，刷新再重试。状态未变不追加操作；其他成功变更递增版本。所有资料变更与审计同一事务，审计失败不会留下部分资料。审计 action 前缀为 BUILDING/ROOM/BED/STUDENT，后缀 CREATED/UPDATED/ENABLED/DISABLED，操作者由当前 Session 确定。
+
+
+## 入住流转（任务 04）
+
+| 方法与路径 | 作用 | 权限、输入及结果 |
+|---|---|---|
+| GET /api/housing/residencies | 当前及历史住宿分页 | 仅系统管理员；q/studentId/current/page/size；items/total/page/size |
+| GET /api/housing/vacant-beds | 有效空床位分页 | 仅系统管理员；q/page/size；只返回楼栋、寝室、床位均启用且没有当前入住的床位 |
+| POST /api/housing/residencies | 入住 | 仅系统管理员；studentId/bedId，正整数；成功 201 |
+| POST /api/housing/residencies/{id}/transfer | 原子调寝 | 仅系统管理员；bedId/note；成功 200，返回新住宿 |
+| POST /api/housing/residencies/{id}/checkout | 退宿 | 仅系统管理员；note；成功 200，返回已结束住宿 |
+| GET /api/housing/my-residency | 本人当前住宿 | 仅学生；无身份参数；返回 `{current: null}` 或本人住宿对象 |
+
+所有写入需 CSRF。q 最长 64 字，按学号、姓名、楼栋或房号文字包含查询；空床位按楼栋、房号或床号查询。current 省略为全部、true 为当前、false 为历史。studentId 是管理员列表的筛选，必须为正整数。page 从 1 开始，size 默认 10、上限 100，固定 id 倒序。
+
+住宿对象包含 id/studentId/studentNo/fullName、buildingId/buildingName、roomId/roomNo、bedId/bedNo、startedAt/endedAt/endReason/endNote。结束原因为 TRANSFER 或 CHECKOUT，当前住宿的结束字段为 null。时间由服务端数据库生成，响应为带 UTC 标识的 ISO 时间，页面按本机时区显示。当前位置名称取最新资料；历史保留办理入住时的位置名称快照，不随后来资料改名变化。
+
+入住同时校验学生资料、学生账号及完整位置链均启用；一名学生与一个床位各只能有一条当前关系。重复分配、相同床位调寝、目标不可用、旧住宿已结束等返回 409 RESIDENCY_CONFLICT；记录不存在返回 404 HOUSING_NOT_FOUND。note 必填、非空白、最多 200 字，保存去除首尾空白。目标床位列表只是查询结果，提交时再次校验。
+
+调寝使用列表中的原住宿 id；先结束该关系，再创建新关系，连同审计整体提交。旧 id 重放被拒绝，不能误操作新住宿；退宿同样保留原记录。任一步失败回滚全部写入。没有修改既有历史或硬删除的接口。
+
+有当前入住时，账号/学生资料/楼栋/寝室/床位停用均返回 409 CURRENT_RESIDENCY_EXISTS，提示先办理调寝或退宿；拒绝后版本与审计不变。历史引用不阻止停用，也不会被删除。未来未完报修等规则仍分别由 05/08/13 承接。
+
+学生查询始终从 Session 取账号；传入 userId/studentId/roomId 不改变范围。housing 的 `CurrentResidencyQuery.findForStudent(AccountPrincipal)` 提供当前关系或 null；`requireForStudent` 在未入住时抛出 NOT_RESIDENT。后续报修和成绩服务应使用该受控边界推导位置；报修写入还需在自己的事务中处理与调寝并发的取值时点。任务 04 没有开放成绩或报修接口，不能视作相关跨业务权限已验收。
+
+审计动作：RESIDENCY_CHECKED_IN、RESIDENCY_TRANSFERRED、RESIDENCY_CHECKED_OUT；target_type 为 RESIDENCY。调寝日志 target_id 指原关系，before 为原住宿，after 包含 previous（已结束）与 current（新住宿）；操作者和时间由服务端生成。

@@ -15,8 +15,9 @@ public class HousingCatalogService {
     private final HousingCatalogMapper catalog;
     private final AccountAccess accounts;
     private final AuditWriter audit;
-    public HousingCatalogService(HousingCatalogMapper catalog, AccountAccess accounts, AuditWriter audit) {
-        this.catalog = catalog; this.accounts = accounts; this.audit = audit;
+    private final ResidencyReferences residencies;
+    public HousingCatalogService(HousingCatalogMapper catalog, AccountAccess accounts, AuditWriter audit, ResidencyReferences residencies) {
+        this.catalog = catalog; this.accounts = accounts; this.audit = audit; this.residencies = residencies;
     }
     @Transactional(readOnly = true)
     public HousingPage<Building> buildings(String q, Boolean enabled, int page, int size) {
@@ -47,7 +48,8 @@ public class HousingCatalogService {
         accounts.lockAdministrator(actor);
         var before = required(catalog.building(id)); checkVersion(before.version(), input.version());
         if (before.enabled() == input.enabled()) return before;
-        // Task 04/05/08/13 adds active residence/work/inspection/rectification checks here.
+        if (!input.enabled()) residencies.requireBuildingVacant(id);
+        // Tasks 05/08/13 add unfinished work/inspection/rectification guards.
         catalog.enableBuilding(id, input.enabled());
         var after = catalog.building(id);
         audit.record(actor.id(), input.enabled() ? "BUILDING_ENABLED" : "BUILDING_DISABLED", "BUILDING", id, before, after);
@@ -93,7 +95,8 @@ public class HousingCatalogService {
         var before = required(catalog.room(id)); checkVersion(before.version(), input.version());
         if (before.enabled() == input.enabled()) return before;
         if (input.enabled()) requireEnabled(before.buildingEnabled());
-        // Extend active-business guards here when task 04/05/08/13 introduces the references.
+        if (!input.enabled()) residencies.requireRoomVacant(id);
+        // Tasks 05/08/13 add unfinished work/inspection/rectification guards.
         catalog.enableRoom(id, input.enabled());
         var after = catalog.room(id);
         audit.record(actor.id(), input.enabled() ? "ROOM_ENABLED" : "ROOM_DISABLED", "ROOM", id, before, after);
@@ -130,7 +133,7 @@ public class HousingCatalogService {
         var before = required(catalog.bed(id)); checkVersion(before.version(), input.version());
         if (before.enabled() == input.enabled()) return before;
         if (input.enabled()) requireEnabled(before.buildingEnabled() && before.roomEnabled());
-        // Extend active-business guards here when task 04 introduces residence references.
+        if (!input.enabled()) residencies.requireBedVacant(id);
         catalog.enableBed(id, input.enabled());
         var after = catalog.bed(id);
         audit.record(actor.id(), input.enabled() ? "BED_ENABLED" : "BED_DISABLED", "BED", id, before, after);

@@ -7,6 +7,8 @@ import PasswordPage from '../features/identity/PasswordPage.vue'
 import AccessPage from '../features/identity/AccessPage.vue'
 import AccountsPage from '../features/identity/AccountsPage.vue'
 import HousingPage from '../features/housing/HousingPage.vue'
+import ResidencyPage from '../features/housing/ResidencyPage.vue'
+import MyResidencyPage from '../features/housing/MyResidencyPage.vue'
 import AppLayout from '../layouts/AppLayout.vue'
 
 export const router = createRouter({
@@ -19,6 +21,8 @@ export const router = createRouter({
       { path: 'profile', component: ProfilePage },
       { path: 'password', component: PasswordPage },
       { path: 'accounts', component: AccountsPage, meta: { role: 'SYSTEM_ADMIN' } },
+      { path: 'residencies', component: ResidencyPage, meta: { role: 'SYSTEM_ADMIN' } },
+      { path: 'my-residency', component: MyResidencyPage, meta: { role: 'STUDENT' } },
       { path: 'housing', component: HousingPage, meta: { roles: ['SYSTEM_ADMIN', 'DORM_MANAGER'] } },
       { path: 'forbidden', component: AccessPage },
       { path: ':pathMatch(.*)*', component: AccessPage },

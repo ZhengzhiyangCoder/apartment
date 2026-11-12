@@ -12,7 +12,7 @@ elif [[ $# -ne 0 ]]; then
 fi
 {
   printf 'START TRANSACTION;\n'
-  if [[ "$reset" == true ]]; then printf 'DELETE FROM operation_log;\nDELETE FROM dorm_bed;\nDELETE FROM dorm_room;\nDELETE FROM dorm_building;\nDELETE FROM student_profile;\nDELETE FROM sys_user;\n'; fi
+  if [[ "$reset" == true ]]; then printf 'DELETE FROM operation_log;\nDELETE FROM housing_residency;\nDELETE FROM dorm_bed;\nDELETE FROM dorm_room;\nDELETE FROM dorm_building;\nDELETE FROM student_profile;\nDELETE FROM sys_user;\n'; fi
   cat backend/src/main/resources/db/demo/accounts.sql
   cat backend/src/main/resources/db/demo/housing.sql
   printf 'COMMIT;\n'

@@ -2,6 +2,7 @@ package com.example.apartment.modules.identity;
 
 import com.example.apartment.common.ApiException;
 import com.example.apartment.modules.housing.StudentProfileReferences;
+import com.example.apartment.modules.housing.ResidencyReferences;
 import com.example.apartment.support.audit.AuditWriter;
 import java.nio.charset.StandardCharsets;
 import org.springframework.dao.DuplicateKeyException;
@@ -18,9 +19,10 @@ public class AccountAdministrationService {
     private final AuditWriter audit;
     private final StudentProfileReferences studentProfiles;
     private final AccountAccess access;
+    private final ResidencyReferences residencies;
     public AccountAdministrationService(AccountAdministrationMapper management, AccountMapper accounts,
-            PasswordEncoder passwords, AuditWriter audit, StudentProfileReferences studentProfiles, AccountAccess access) {
-        this.management = management; this.accounts = accounts; this.passwords = passwords; this.audit = audit; this.studentProfiles = studentProfiles; this.access = access;
+            PasswordEncoder passwords, AuditWriter audit, StudentProfileReferences studentProfiles, AccountAccess access, ResidencyReferences residencies) {
+        this.management = management; this.accounts = accounts; this.passwords = passwords; this.audit = audit; this.studentProfiles = studentProfiles; this.access = access; this.residencies = residencies;
     }
 
     @Transactional(readOnly = true)
@@ -62,7 +64,8 @@ public class AccountAdministrationService {
         var before = lockTarget(actor, id, input.version());
         if (before.enabled() == input.enabled()) return AccountView.of(before);
         if (!input.enabled()) protectLastAdministrator(before);
-        // Housing / repair / hygiene add their active-business checks here when those modules exist.
+        if (!input.enabled()) residencies.requireAccountVacant(id);
+        // Repair / hygiene add unfinished-business checks when those modules exist.
         // Audit references are historical: retain the identity, never delete it.
         management.changeEnabled(id, input.enabled());
         return recordChange(actor, input.enabled() ? "ACCOUNT_ENABLED" : "ACCOUNT_DISABLED", before);

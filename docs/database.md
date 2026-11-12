@@ -1,6 +1,6 @@
-# 实际数据库 — 任务 01–03
+# 实际数据库 — 任务 01–04
 
-版本迁移是唯一结构执行来源：`backend/src/main/resources/db/migration/` 中 V1 身份表、V2 账号审计表与角色状态索引、V3 楼栋、V4 寝室床位、V5 学生资料。当前不提前建立后续业务模块空表。原始 18 表设计为后续任务的建模输入，不是已经运行的数据库。
+版本迁移是唯一结构执行来源：`backend/src/main/resources/db/migration/` 中 V1 身份表、V2 账号审计表与角色状态索引、V3 楼栋、V4 寝室床位、V5 学生资料、V6 住宿关系。当前不提前建立后续业务模块空表。原始 18 表设计为后续任务的建模输入，不是已经运行的数据库。
 
 ## sys_user
 
@@ -15,7 +15,7 @@
 | auth_version | 密码、角色或启停变化时递增，同时作为编辑版本与旧会话失效依据 |
 | created_at / updated_at | 创建与变更时间 |
 
-Flyway 另外维护自身迁移历史表。账号与学生资料的分工保持既定工程规则，学生学籍归 student_profile，入住与历史归任务 04；当前未创建入住记录。
+Flyway 另外维护自身迁移历史表。账号与学生资料的分工保持既定工程规则，学生学籍归 student_profile，入住与历史归 V6 housing_residency。
 
 ## 隔离与保留
 
@@ -32,7 +32,7 @@ Flyway 另外维护自身迁移历史表。账号与学生资料的分工保持�
 | id | 自增主键 |
 | actor_id | 操作者 sys_user 外键，不允许级联删除身份 |
 | action | ACCOUNT_CREATED / ACCOUNT_ROLE_CHANGED / ACCOUNT_PASSWORD_RESET / ACCOUNT_DISABLED / ACCOUNT_ENABLED |
-| target_type / target_id | ACCOUNT / BUILDING / ROOM / BED / STUDENT 与对应目标 ID |
+| target_type / target_id | ACCOUNT / BUILDING / ROOM / BED / STUDENT / RESIDENCY 与对应目标 ID |
 | before_data / after_data | 白名单账号或住宿资料快照 JSON；创建的 before_data 为 null；不存密码或哈希 |
 | created_at | 数据库生成的实际操作时间，微秒精度 |
 
@@ -44,7 +44,7 @@ Flyway 另外维护自身迁移历史表。账号与学生资料的分工保持�
 
 锁定读取与事务回滚机制分别核对了 [MySQL 8.4 官方说明](https://dev.mysql.com/doc/refman/8.4/en/innodb-locking-reads.html) 和 [Spring 事务回滚说明](https://docs.spring.io/spring-framework/reference/data-access/transaction/declarative/rolling-back.html)。是否满足本项目行为以实际接口、并发和故障注入测试为准。
 
-测试重置仅清理 apartment_test：审计、床位、寝室、楼栋、学生资料、账号按引用顺序删除；正常演示 seed 只补充模拟数据，不清空日志或重置既有资料。
+测试重置仅清理 apartment_test：审计、住宿关系、床位、寝室、楼栋、学生资料、账号按引用顺序删除；正常演示 seed 只补充模拟数据，不清空日志或重置既有资料。
 
 ## 住宿基础表
 
@@ -59,6 +59,25 @@ Flyway 另外维护自身迁移历史表。账号与学生资料的分工保持�
 
 全部资料写入通过 identity AccountAccess 按已有次序锁定启用系统管理员、重新校验操作者，再锁定目标资料/上级。同账号管理共用锁顺序，使角色变化与学生绑定不会并发产生不一致。新建学生资料使用受控账号校验；账号改角色通过 housing StudentProfileReferences 验证绑定，服务依赖无循环。普通列表使用只读查询，不写审计或隐藏初始化数据。列表账号信息为一次批量查询，不逐学生请求或复制密码/角色。
 
-这几项管理操作选择串行写锁，适合当前本地基础维护；任务 17 才进行已约定规模的性能实测，不以本轮通过功能测试推断性能达标。04 的入住分配必须核对整条楼栋—寝室—床位启用链及学生/账号状态，再加入当前入住唯一约束与停用保护。
+这几项管理操作选择串行写锁，适合当前本地基础维护；任务 17 才进行已约定规模的性能实测，不以本轮通过功能测试推断性能达标。04 已加入整条启用链校验、当前入住唯一约束及关联停用保护，见下节。
 
 迁移遵循新增版本，V1/V2 不改。V3–V5 为新增表，不混入演示数据；只有显式 seed 加载模拟资料。保留数据优先，当前没有自动 DOWN：如需撤销已应用结构，停写后备份数据，使用后续前向修正迁移，不自动删除表或重建演示库。
+
+
+## V6 housing_residency
+
+| 字段 | 用途与约束 |
+|---|---|
+| id / student_id / bed_id | 住宿主键与学生资料、床位外键；无级联删除 |
+| building_name / room_no / bed_no | 入住时的位置快照，保留历史标识 |
+| started_at / started_by | 实际入住时间、操作者账号外键 |
+| ended_at / ended_by / end_reason / end_note | 结束时间、操作者、TRANSFER 或 CHECKOUT、办理说明 |
+| active_student_id / active_bed_id | 虚拟生成列：未结束时取 student_id / bed_id，已结束时为 NULL；分别 UNIQUE |
+
+结束字段有完整性 CHECK：当前住宿的全部结束字段为空；已结束时操作者、原因、说明非空，结束时间不早于入住时间。按学生和 id 建历史索引，按 ended_at/id 支持状态列表；原父级外键保持归属链。位置名称不复制成另一份可修改资料，当前视图联查最新名称、历史视图读取原快照。
+
+MySQL 允许可空唯一索引含多个 NULL，因此任意多条历史可保留，同时一名学生/床位最多一个当前关系。已核对 [MySQL 8.4 生成列索引说明](https://dev.mysql.com/doc/refman/8.4/en/create-table-secondary-indexes.html) 与 [NULL 唯一索引说明](https://dev.mysql.com/doc/refman/8.4/en/show-columns.html)；本项目另外通过真实 MySQL 直接违反两项唯一约束，验证数据库实际拒绝。
+
+住宿写入与账号/资料变更沿用同一管理员锁次序。停用检查通过 ResidencyReferences，只读跨模块边界无反向服务循环；学生当前范围通过 CurrentResidencyQuery 从认证身份推导。调寝结束旧关系、创建新关系并写审计均在一个 Spring 事务内；没有独立“床位已占用”布尔状态需要同步。
+
+V6 为增量新增表，V1–V5 保持原字节；不混入演示数据。无自动 DOWN，撤销需备份并采用前向修正，不能删除既有住宿历史。最小演示继续复用已有有效学生和六张床位，由实际页面办理产生入住及审计，不在 seed 中伪造办理操作；重复 seed 也不会重新入住已退宿学生。

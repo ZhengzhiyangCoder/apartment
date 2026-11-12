@@ -14,8 +14,9 @@ public class StudentProfileService {
     private final StudentProfileMapper profiles;
     private final AccountAccess accounts;
     private final AuditWriter audit;
-    public StudentProfileService(StudentProfileMapper profiles, AccountAccess accounts, AuditWriter audit) {
-        this.profiles = profiles; this.accounts = accounts; this.audit = audit;
+    private final ResidencyReferences residencies;
+    public StudentProfileService(StudentProfileMapper profiles, AccountAccess accounts, AuditWriter audit, ResidencyReferences residencies) {
+        this.profiles = profiles; this.accounts = accounts; this.audit = audit; this.residencies = residencies;
     }
     @Transactional(readOnly = true)
     public HousingPage<StudentView> list(String q, Boolean enabled, int page, int size) {
@@ -49,7 +50,7 @@ public class StudentProfileService {
         var before = required(profiles.lock(id)); checkVersion(before.version(), input.version());
         if (before.enabled() == input.enabled()) return view(before);
         if (input.enabled()) accounts.lockEnabledStudent(before.userId());
-        // Task 04 adds the current residence guard before deactivation.
+        if (!input.enabled()) residencies.requireStudentVacant(id);
         profiles.enable(id, input.enabled());
         var after = profiles.lock(id);
         audit.record(actor.id(), input.enabled() ? "STUDENT_ENABLED" : "STUDENT_DISABLED", "STUDENT", id, before, after);
