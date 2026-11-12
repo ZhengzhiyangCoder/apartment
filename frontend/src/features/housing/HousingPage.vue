@@ -2,8 +2,8 @@
 import { computed, onMounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElButton, ElDialog, ElInput } from 'element-plus'
-import { HttpError, request, write } from '../../lib/http'
-import { currentUser } from '../identity/session'
+import { request, write } from '../../lib/http'
+import { currentUser, handleAuthorizationFailure } from '../identity/session'
 import CatalogPicker from './CatalogPicker.vue'
 import type { CatalogItem, CatalogKind, Building, Room, PageResult } from './types'
 
@@ -26,11 +26,8 @@ function itemLabel(item: CatalogItem) {
   if ('studentNo' in item) return `${item.fullName} · ${item.studentNo}`
   return `${item.buildingName} · ${item.roomNo}${'bedNo' in item ? ` · ${item.bedNo} 号床` : ''}`
 }
-async function authorization(failure: unknown) {
-  if (failure instanceof HttpError && failure.status === 401) { currentUser.value = null; await router.replace({ path: '/login', query: { accountChanged: '1' } }); return true }
-  if (failure instanceof HttpError && failure.status === 403) { await router.replace('/forbidden'); return true }
-  return false
-}
+const authorization = (failure: unknown) => handleAuthorizationFailure(failure, router)
+
 async function load(page = 1) {
   if (loading.value) return
   loading.value = true; error.value = ''

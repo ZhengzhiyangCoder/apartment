@@ -1,4 +1,5 @@
 import { shallowRef } from 'vue'
+import type { Router } from 'vue-router'
 import { HttpError, request, write } from '../../lib/http'
 
 export type Role = 'SYSTEM_ADMIN' | 'DORM_MANAGER' | 'STUDENT' | 'MAINTAINER'
@@ -25,3 +26,17 @@ export async function logout() {
 }
 
 export function workspacePath() { return `/workspace/${currentUser.value?.role ?? 'STUDENT'}` }
+
+
+export async function handleAuthorizationFailure(failure: unknown, router: Router) {
+  if (failure instanceof HttpError && failure.status === 401) {
+    currentUser.value = null
+    await router.replace({ path: '/login', query: { accountChanged: '1' } })
+    return true
+  }
+  if (failure instanceof HttpError && failure.status === 403) {
+    await router.replace('/forbidden')
+    return true
+  }
+  return false
+}

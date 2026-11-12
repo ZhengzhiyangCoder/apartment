@@ -2,8 +2,8 @@
 import { computed, onMounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElButton, ElDialog, ElInput } from 'element-plus'
-import { HttpError, request, write } from '../../lib/http'
-import { currentUser, refreshUser, type Role } from './session'
+import { request, write } from '../../lib/http'
+import { currentUser, refreshUser, handleAuthorizationFailure, type Role } from './session'
 
 interface Account { id: number; username: string; displayName: string; role: Role; enabled: boolean; version: number }
 interface AccountPage { items: Account[]; total: number; page: number; size: number }
@@ -20,13 +20,7 @@ const titles = computed(() => ({ create: '创建账号', role: '变更角色', '
 const submitLabel = computed(() => ({ create: '确认创建', role: '保存角色', 'reset-password': '确认重置', enabled: target.value?.enabled ? '确认禁用' : '确认启用' })[action.value])
 const pages = computed(() => Math.max(1, Math.ceil(result.value.total / result.value.size)))
 
-async function handleAuthorization(failure: unknown) {
-  if (failure instanceof HttpError && failure.status === 401) {
-    currentUser.value = null; await router.replace({ path: '/login', query: { accountChanged: '1' } }); return true
-  }
-  if (failure instanceof HttpError && failure.status === 403) { await router.replace('/forbidden'); return true }
-  return false
-}
+const handleAuthorization = (failure: unknown) => handleAuthorizationFailure(failure, router)
 
 async function load(page = 1) {
   if (loading.value) return

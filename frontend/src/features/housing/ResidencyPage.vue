@@ -2,8 +2,8 @@
 import { computed, onMounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElButton, ElDialog, ElInput } from 'element-plus'
-import { HttpError, request, write } from '../../lib/http'
-import { currentUser } from '../identity/session'
+import { request, write } from '../../lib/http'
+import { handleAuthorizationFailure } from '../identity/session'
 import CatalogPicker from './CatalogPicker.vue'
 import type { PageResult, Residency } from './types'
 
@@ -15,11 +15,8 @@ const action = ref<'checkin' | 'transfer' | 'checkout'>('checkin'), target = ref
 const titles = { checkin: '办理入住', transfer: '办理调寝', checkout: '办理退宿' }
 const confirms = { checkin: '确认入住', transfer: '确认调寝', checkout: '确认退宿' }
 const pages = computed(() => Math.max(1, Math.ceil(result.value.total / result.value.size)))
-async function authorization(failure: unknown) {
-  if (failure instanceof HttpError && failure.status === 401) { currentUser.value = null; await router.replace('/login'); return true }
-  if (failure instanceof HttpError && failure.status === 403) { await router.replace('/forbidden'); return true }
-  return false
-}
+const authorization = (failure: unknown) => handleAuthorizationFailure(failure, router)
+
 async function load(page = 1) {
   if (loading.value) return
   loading.value = true; error.value = ''
