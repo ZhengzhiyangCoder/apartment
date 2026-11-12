@@ -91,3 +91,12 @@
 - [接口](../../docs/api.md)、[数据库](../../docs/database.md)、[演示](../../docs/demo.md)、[测试证据](../../docs/testing.md)扩展到 01–03；20 项 API/MySQL、30 项双尺寸浏览器通过。
 - 实际迁移 V3–V5，模拟资料脚本为 backend/src/main/resources/db/demo/housing.sql；[截图](../../output/playwright/) task03-rooms、room-conflict、student-form、students，两种宽度；运行产物留本机。
 - 沿用既有项目脚本，不安装或注册新的跨项目资产。此前各章节“未实现”等为定稿阶段历史，当前实现以本节和项目上下文为准。
+
+
+## 任务 04 入住流转交付（2026-11-12）
+
+- [正式任务 04](../../.scratch/dorm-management/issues/04-residency-lifecycle.md)、[归档卡](../task-cards/completed/20261112-task04-implement.md)、[实施日志](../logs/20261112-task04-implement.md)、[独立双轴审查](../logs/20261112-task04-review.md)。
+- [接口](../../docs/api.md)、[实际数据库](../../docs/database.md)、[演示](../../docs/demo.md)、[测试证据](../../docs/testing.md)更新至 01–04；28 项全量 API/MySQL、38 项双尺寸浏览器通过。
+- V6 住宿历史表、CurrentResidencyQuery 受控当前住宿查询、ResidencyReferences 停用检查均位于 backend housing；前端“入住办理”“我的住宿”实际页面。
+- [截图](../../output/playwright/) task04-my-residency / transfer-error / not-resident / history，各两尺寸，共8张；运行产物仅留本机。复用现有演示资料与脚本，未登记全局新资产。
+- 下一项为 [05](../../.scratch/dorm-management/issues/05-student-repairs.md)，04/05/08/10/11 已记录跨业务衔接；后续任务未提前执行。

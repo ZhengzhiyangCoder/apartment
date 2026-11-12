@@ -1,6 +1,6 @@
-# 测试与验收记录 — 任务 01–03
+# 测试与验收记录 — 任务 01–04
 
-日期：2026-11-11（Asia/Shanghai）。任务 01–03 验证完成；后续业务及整套系统验收尚未完成。
+最新日期：2026-11-12（Asia/Shanghai）。任务 01–04 验证完成；后续业务及整套系统验收尚未完成。
 
 ## 边界与隔离
 
@@ -73,7 +73,7 @@ API 测试位于后端 IdentityHttpTest，运行前核对数据库产品为 MySQ
 - 任务 03 六条准则已闭环；联合账号/学籍创建未提供，其条件项不适用。未启动任务 04。全系统与其他环境边界保持前述。
 
 
-## 任务 04 当前验证（2026-11-12）
+## 任务 04 最终验证（2026-11-12）
 
 沿公开 HTTP / 真实 apartment_test / 实际 Chrome 验证。新增 ResidencyHttpTest 8 项与 residency.spec.ts 每尺寸 4 项；旧场景单独计数，不能把重跑次数算作新增场景。
 
@@ -84,4 +84,14 @@ API 测试位于后端 IdentityHttpTest，运行前核对数据库产品为 MySQ
 - 已查看 task04-history-1366、task04-transfer-error-1366、task04-my-residency-1920 截图；列表、长对话框和实际按钮可操作，页面无横向溢出。另保留两个尺寸的 task04-not-resident，全部为实际应用截图。
 - V6 已在真实测试库从 V5 原地迁移；V1–V5 未改。演示最小样本沿用已有学生与床位，入住操作由页面真实办理，重复 seed 不重置住宿。
 
-尚待本轮完整回归、独立双轴审查与演示库升级完成。05 的历史报修与位置、08/10 的应检快照、11 的成绩权限切换明确后续承接；任务 04 不宣称它们或任务 17 性能验收已通过。
+完整回归、独立双轴审查与演示升级结果如下。05 的历史报修与位置、08/10 的应检快照、11 的成绩权限切换明确后续承接；任务 04 不宣称它们或任务 17 性能验收已通过。
+
+
+- 全量后端 `./scripts/backend.sh -B verify`：**28 项通过**（前序20+入住8），JAR 构建通过；`.runtime/task04-backend-final.log`。修正仅涉及前端，最终空测试库验证再次28项通过，见下段。
+- 前端 `npm --prefix frontend run build`：vue-tsc 与 Vite 构建通过；原始 `.runtime/task04-frontend-build.log`，审查修正后 `.runtime/task04-review-build.log`。
+- 全量浏览器 `npm --prefix frontend run test:e2e`：原始 **38 项通过**（前序30+入住8），`.runtime/task04-browser-final.log`；03e98be 修正后再次 **38 项通过**，最终 `.runtime/task04-browser-review-fix.log`。不重复累计场景。
+- 原始 Standards 0硬违规/1 P3建议，Spec 0；统一三个管理页授权失效处理后，两名 reviewer 分别复核，无剩余发现，见[审查记录](../.codex-work/logs/20261112-task04-review.md)。
+- 浏览器服务退出后，明确核验固定库名 apartment_test 与8张预期表，再清空该测试 schema；实际从空库执行 **V1–V6全部6项迁移**并启动应用，28项API/MySQL及打包再次通过，`.runtime/task04-clean-backend-final.log`。该一次性验证脚本仅放 .runtime，拒绝任意库名及额外表；演示库未清理。所有故障CHECK已移除。
+- 演示 V5→V6原地升级成功，5174代理实际办理模拟A101→B201，当前1条、历史1条。重复seed和实际重启后数据完全一致：`.runtime/task04-demo-initial.json` / `.runtime/task04-demo-final.json`。演示服务保留运行，测试服务已退出。
+
+任务04覆盖US07–11和共享AC的本票分工，7条准则闭环；05/08/10/11仍待各自开发验证。性能、其他OS/浏览器、公网部署均未新验证，不扩大前序环境结论。

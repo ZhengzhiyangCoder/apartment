@@ -1,5 +1,10 @@
 # 已完成待办
 
+## 2026-11-12 任务 04 入住流转
+
+- [任务 04](../../.scratch/dorm-management/issues/04-residency-lifecycle.md)已完成：入住、原子调寝、退宿、历史与本人住宿查询，数据库唯一约束、关联停用保护和事务审计。
+- 28 项全量 API/MySQL、38 项双尺寸浏览器、构建及两轴审查闭环；完整空库迁移、重复 seed 与实际重启持久化通过。见[实现日志](../logs/20261112-task04-implement.md)、[测试](../../docs/testing.md)、[审查](../logs/20261112-task04-review.md)、[归档卡](../task-cards/completed/20261112-task04-implement.md)。
+
 ## 2026-11-11 任务 03 住宿基础资料
 
 - [任务 03](../../.scratch/dorm-management/issues/03-housing-catalog.md)已完成：楼栋、寝室、床位、学生资料的实际持久化、分页、表单、启停、账号一致性与事务审计。

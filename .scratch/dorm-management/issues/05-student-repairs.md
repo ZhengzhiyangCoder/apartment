@@ -43,3 +43,6 @@ Type: task
 
 
 - 2026-11-11：用户认可拆分和依赖，要求生成正式任务票并从 01 开始 implement；本票已正式发布，验收范围与依赖保持批准内容。
+
+
+- 2026-11-12：04 已交付 V6 住宿关系与 `CurrentResidencyQuery.findForStudent/requireForStudent(AccountPrincipal)`；新增报修从认证身份读取当前寝室，未入住须拒绝。接入时明确与调寝并发的事务取值时点，工单保存提交时位置；验证本人旧工单在调寝/退宿后仍可访问。扩展既有 ResidencyReferences 所在受控边界的未完工单停用规则，不修改或删除住宿历史。本轮仅记录衔接，未启动 05。

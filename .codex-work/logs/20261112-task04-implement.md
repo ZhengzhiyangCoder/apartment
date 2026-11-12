@@ -1,6 +1,6 @@
 # 任务 04 实施记录
 
-日期：2026-11-12。状态：进行中。
+日期：2026-11-12。状态：已完成。
 
 已读交接、全局索引、项目最新资料与任务 04。交接只作为定位线索，实施授权来自用户本次要求。固定基点 33c8e69；复用 implement / tdd / springboot-patterns / database-migrations / playwright / code-review。沿已批准 HTTP、真实 MySQL、浏览器边界逐切片验证。
 
@@ -19,3 +19,28 @@
 - 并发测试首次准备样本误用模糊账号查询第一项（student 匹配 student_two），产生重复关联 409；已只修正测试辅助方法为用户名精确匹配，重跑通过，非产品缺陷。
 - 数据库直写仅用于隔离样本、约束契约验证和受控故障注入，用户业务结果继续通过 HTTP 查询核验；所有临时 CHECK 均 finally 移除。
 - 复用现有演示学生和六床位；seed 不伪造住宿办理，真实页面产生业务与审计。测试重置扩展为先清除 housing_residency，仍只接受 apartment_test。
+
+
+## 完整回归、独立审查与演示
+
+原始实现提交 9453790；28 项全量 API/MySQL 和 JAR 构建通过（.runtime/task04-backend-final.log），38 项全量双尺寸浏览器通过（.runtime/task04-browser-final.log），前端类型检查与构建通过。
+
+独立 Standards 原 0 硬违规/1 P3 复用建议，Spec 0；03e98be 统一三个管理页的授权失效反馈并保留 accountChanged 提示，两名 reviewer 分别复核，均无剩余发现。修正只涉及前端，后端无变化；修正后前端构建通过，最终浏览器38项再次全部通过（.runtime/task04-browser-review-fix.log）。
+
+演示库由 V5 原地迁移至 V6；通过 5174 代理实际为模拟 student 办理 A101/01 入住再调到 B201/01，保留 2 条关系（1 当前、1 调寝历史）及相应审计。重复 seed 与实际停止/重启本项目后端后，API 数据与初始快照完全一致（.runtime/task04-demo-initial.json / task04-demo-final.json）。只停止已核实 cwd 为 apartment/backend、端口8081的本轮进程；未操作同机其他服务。
+
+核验演示 V1–V6 均 success=1，测试库 test_reject 故障约束为0。既有 V1–V5、定稿 Spec、工程结构和第一版原型字节未改。全部样本、截图、运行日志留本机，不登记新的全局资产。
+
+
+## 归档完成
+
+浏览器服务退出后，单独核验并清空 apartment_test 的8张预期表，真实从空schema执行V1–V6完整迁移，28项全量API/MySQL与JAR构建再次通过（.runtime/task04-clean-backend-final.log）。演示库始终保留；最后代理查询再次确认模拟入住与历史未变。
+
+正式04的7条准则、任务总览、README、上下文、测试/API/数据库/演示、资料索引和todo已同步；04任务卡归档completed。当前待办只保留05与既有待同步总索引。05/08/10/11 Comments明确后续跨业务验证，未启动05。
+
+总索引projects/README.md及拟建apartment.md仍在可写范围外，本轮未跨目录写入；沿用既有待同步事项，不新建总索引、不重复复制本地记录。既有脚本复用，无新的全局资产登记。
+
+实现和审查修正已提交当前main，归档另行提交；本轮未推送远端。演示5174/8081/3308保留，测试5175/8082退出；所有凭据、依赖、截图与临时验证脚本保持Git忽略。
+
+
+最终核验：本轮268个Markdown相对链接均有效，所有改动文档UTF-8/LF，04有7条完成准则、05仍待开始，8张实际截图存在。归档一次性脚本直接执行曾报告编码异常；同一文件经严格UTF-8解码和编译确认有效，改为显式UTF-8加载执行后完成归档；未据此改动业务代码。
