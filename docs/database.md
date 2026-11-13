@@ -1,6 +1,6 @@
-# 实际数据库 — 任务 01–04
+# 实际数据库 — 任务 01–05
 
-版本迁移是唯一结构执行来源：`backend/src/main/resources/db/migration/` 中 V1 身份表、V2 账号审计表与角色状态索引、V3 楼栋、V4 寝室床位、V5 学生资料、V6 住宿关系。当前不提前建立后续业务模块空表。原始 18 表设计为后续任务的建模输入，不是已经运行的数据库。
+版本迁移是唯一结构执行来源：`backend/src/main/resources/db/migration/` 中 V1 身份表、V2 账号审计表与角色状态索引、V3 楼栋、V4 寝室床位、V5 学生资料、V6 住宿关系、V7 报修工单/图片/状态日志。当前不提前建立后续业务模块空表。原始 18 表设计为后续任务的建模输入，不是已经运行的数据库。
 
 ## sys_user
 
@@ -32,7 +32,7 @@ Flyway 另外维护自身迁移历史表。账号与学生资料的分工保持�
 | id | 自增主键 |
 | actor_id | 操作者 sys_user 外键，不允许级联删除身份 |
 | action | ACCOUNT_CREATED / ACCOUNT_ROLE_CHANGED / ACCOUNT_PASSWORD_RESET / ACCOUNT_DISABLED / ACCOUNT_ENABLED |
-| target_type / target_id | ACCOUNT / BUILDING / ROOM / BED / STUDENT / RESIDENCY 与对应目标 ID |
+| target_type / target_id | ACCOUNT / BUILDING / ROOM / BED / STUDENT / RESIDENCY / REPAIR 与对应目标 ID |
 | before_data / after_data | 白名单账号或住宿资料快照 JSON；创建的 before_data 为 null；不存密码或哈希 |
 | created_at | 数据库生成的实际操作时间，微秒精度 |
 

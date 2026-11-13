@@ -100,3 +100,11 @@
 - V6 住宿历史表、CurrentResidencyQuery 受控当前住宿查询、ResidencyReferences 停用检查均位于 backend housing；前端“入住办理”“我的住宿”实际页面。
 - [截图](../../output/playwright/) task04-my-residency / transfer-error / not-resident / history，各两尺寸，共8张；运行产物仅留本机。复用现有演示资料与脚本，未登记全局新资产。
 - 下一项为 [05](../../.scratch/dorm-management/issues/05-student-repairs.md)，04/05/08/10/11 已记录跨业务衔接；后续任务未提前执行。
+
+## 任务05实现与验证（2026-11-13）
+
+- [任务票](../../.scratch/dorm-management/issues/05-student-repairs.md)、[归档卡](../task-cards/completed/20261113-task05-implement.md)、[实施日志](../logs/20261113-task05-implement.md)、[审查](../logs/20261113-task05-review.md)。
+- [V7迁移](../../backend/src/main/resources/db/migration/V7__student_repairs.sql)、[报修后端](../../backend/src/main/java/com/example/apartment/modules/repair/)、[私有图片存储](../../backend/src/main/java/com/example/apartment/support/storage/RepairImageStorage.java)、[前端](../../frontend/src/features/repair/)。
+- [API测试](../../backend/src/test/java/com/example/apartment/repair/RepairHttpTest.java)、[浏览器测试](../../frontend/e2e/repairs.spec.ts)、[测试结果](../../docs/testing.md)、[模拟演示](../../docs/demo.md)。36后端/44全量浏览器、修正后36后端/6报修浏览器通过。
+- [API](../../docs/api.md)、[数据库](../../docs/database.md)、[运行](../../docs/local-run.md)随片更新。V1–V7空库及演示升级、重复seed与重启后的图片摘要验证完成。
+- 项目内复用既有脚本/测试与受控身份住宿边界，未安装或登记全局新资产。临时模拟/验证脚本在忽略的.runtime，仅本项目本轮使用；不登记为跨项目可用资产。下一项06待开始。

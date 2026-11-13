@@ -42,3 +42,5 @@ Type: task
 
 
 - 2026-11-11：用户认可拆分和依赖，要求生成正式任务票并从 01 开始 implement；本票已正式发布，验收范围与依赖保持批准内容。
+
+- 2026-11-13：05已交付repair_order/repair_image/repair_status_log、受控图片存储、位置快照、提交去重和待分配取消。06扩展RepairService统一authorized范围、RepairReferences的维修人员未完工单检查，并同步修改状态转换和界面：待处理取消、派单/重分配、开始/完成及附件权限撤销。复用AccountAccess.lockBusinessActor统一写锁和无凭据操作者结果；状态日志/审计须同事务。当前MAINTAINER无工单访问权，不能直接放开集合路由而不接入负责人过滤。测试API与浏览器仍须顺序运行，图片测试目录与demo隔离。本票未启动。
