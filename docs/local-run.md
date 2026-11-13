@@ -46,3 +46,9 @@ npm run test:e2e
 - 会话失效：退出或改密后需重新登录，CSRF 失效时页面刷新后重试。
 
 本机 HTTP 场景 Cookie 为 HttpOnly / SameSite=Strict，Secure=false；仅适用于回环地址。实际 `.env`、运行时数据和构建目录不进入版本管理。Windows 等其他环境尚未验证。
+
+## 报修图片存储
+
+后端默认运行目录为backend，图片默认保存在项目`.runtime/uploads/demo`；可通过`APARTMENT_STORAGE_ROOT`指定绝对路径。API测试固定`.runtime/uploads/test-api`，浏览器测试通过命令行固定`.runtime/uploads/test-browser`，不会使用演示目录。文件不会进入Git或frontend/public；仅通过`/api/repairs/{id}/images/{imageId}`读取。
+
+启动账号应有目录读写权限。不要把上传目录作为静态目录公开；迁移或备份需同时保留MySQL与演示图片。正常重启和重复seed不清空图片。若磁盘不可写，提交显示服务器错误并保留表单，恢复目录权限后重试；图片缺失返回安全503，不泄漏磁盘路径。强制中断进程可能产生无法通过API访问的无关联文件，清理前须先核对数据库关联，不能直接清空整个上传目录。

@@ -58,6 +58,9 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.GET, "/api/housing/my-residency").hasRole("STUDENT")
                 .requestMatchers(HttpMethod.GET, "/api/housing/residencies", "/api/housing/vacant-beds").hasRole("SYSTEM_ADMIN")
                 .requestMatchers(HttpMethod.POST, "/api/housing/residencies", "/api/housing/residencies/*/transfer", "/api/housing/residencies/*/checkout").hasRole("SYSTEM_ADMIN")
+                .requestMatchers(HttpMethod.GET, "/api/repairs", "/api/repairs/*", "/api/repairs/*/images/*").hasAnyRole("STUDENT", "SYSTEM_ADMIN", "DORM_MANAGER")
+                .requestMatchers(HttpMethod.POST, "/api/repairs").hasRole("STUDENT")
+                .requestMatchers(HttpMethod.POST, "/api/repairs/*/cancel").hasAnyRole("STUDENT", "SYSTEM_ADMIN", "DORM_MANAGER")
                 .anyRequest().denyAll())
             .formLogin(form -> form.loginProcessingUrl("/api/auth/login")
                 .successHandler((request, response, authentication) -> {

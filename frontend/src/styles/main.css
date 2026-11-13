@@ -735,3 +735,22 @@ button {
 .picker-pages { display:flex; align-items:center; justify-content:space-between; gap:12px; font-size:12px; color:var(--muted); margin-top:12px }
 .picker-pages button { border:0; background:none; color:var(--primary); padding:6px }
 .picker-pages button:disabled { opacity:.4 }
+
+.repair-table { table-layout:fixed; width:100% }
+.repair-table th:first-child { width:32% }
+.repair-table th:nth-child(2) { width:23% }
+.repair-table th:nth-child(3) { width:13% }
+.repair-table th:nth-child(4) { width:20% }
+.repair-table td { overflow-wrap:anywhere }
+.repair-summary { display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; margin-top:8px; color:var(--muted); line-height:1.7 }
+.repair-description { white-space:pre-wrap; overflow-wrap:anywhere; line-height:1.9 }
+.repair-detail-head { display:flex; justify-content:space-between; align-items:center; gap:16px }
+.repair-images,.repair-previews { display:flex; flex-wrap:wrap; gap:16px; margin:20px 0 }
+.repair-image,.repair-previews figure { margin:0; width:180px; overflow-wrap:anywhere }
+.repair-image img,.repair-previews img { width:180px; height:140px; object-fit:contain; background:var(--base); border-radius:12px; box-shadow:var(--pressed) }
+.repair-previews figcaption { font-size:12px; line-height:1.7; margin-top:8px }
+.repair-timeline { list-style:none; padding:0 0 0 18px; margin:20px 0; border-left:2px solid #c6d1dc }
+.repair-timeline li { padding:0 0 18px 12px; line-height:1.6; overflow-wrap:anywhere }
+.repair-timeline span { display:block; color:var(--muted); font-size:12px; margin-top:4px }
+.repair-timeline p { margin:6px 0 0; white-space:pre-wrap }
+.repair-cancel { padding:20px 0; border-top:1px solid #cfd8e1 }

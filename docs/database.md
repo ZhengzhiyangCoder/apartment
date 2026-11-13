@@ -81,3 +81,17 @@ MySQL 允许可空唯一索引含多个 NULL，因此任意多条历史可保留
 住宿写入与账号/资料变更沿用同一管理员锁次序。停用检查通过 ResidencyReferences，只读跨模块边界无反向服务循环；学生当前范围通过 CurrentResidencyQuery 从认证身份推导。调寝结束旧关系、创建新关系并写审计均在一个 Spring 事务内；没有独立“床位已占用”布尔状态需要同步。
 
 V6 为增量新增表，V1–V5 保持原字节；不混入演示数据。无自动 DOWN，撤销需备份并采用前向修正，不能删除既有住宿历史。最小演示继续复用已有有效学生和六张床位，由实际页面办理产生入住及审计，不在 seed 中伪造办理操作；重复 seed 也不会重新入住已退宿学生。
+
+## V7 学生报修
+
+- repair_order：提交人、原住宿及五类资料外键，提交时学生姓名与楼栋/寝室/床位快照，问题分类/描述/状态、时间、请求UUID和内容摘要。`(submitted_by, request_id)`唯一约束防网络重试重复生成；状态与分类CHECK，按本人/id和状态/id查询。
+- repair_image：工单外键、仅内部使用的随机文件键、规范化PNG字节数；文件键唯一。最多5张由同一串行写事务校验，不提供独立无主附件上传。
+- repair_status_log：工单、前后状态、操作者外键/姓名快照、时间和备注；按工单/id排序。与工单变更、统一operation_log一起提交。
+
+V7只新增表，V1–V6保持不变。没有级联删除或删除API；历史引用始终保留。撤销使用后续前向修正迁移，不自动删除已提交工单或清空演示库。
+
+AccountAccess.lockBusinessActor复用原管理员全局锁后核验最新身份，按角色允许学生提交及三类角色取消；住宿办理、资料启停、账号变更维持同一锁顺序。RepairReferences只依赖mapper，由已有ResidencyReferences边界调用，不与RepairService形成服务循环。05检查提交人及原住宿资料的未完工单；06增加分配维修人员的停用约束。
+
+本地文件先解码并重新编码，再在业务事务内写到私有目录；事务同步回调负责失败清理。只有已提交的工单关联可通过授权接口读取，不暴露文件路径。进程被强制终止可能留下无数据库关联的孤立文件，它们无法经接口访问；不要把此目录挂到静态Web服务。正常服务重启和seed不删除任何已关联图片，数据库与文件目录应一并保留。
+
+测试重置增加先删除repair_status_log/repair_image/repair_order，随后删除住宿与账号资料；仍仅允许apartment_test。演示、API测试和浏览器测试使用独立图片目录。WebP解码依赖锁定TwelveMonkeys imageio-webp 3.15.3，采用[官方ImageIO插件方式](https://github.com/haraldk/TwelveMonkeys)，构件见[Maven Central](https://central.sonatype.com/artifact/com.twelvemonkeys.imageio/imageio-webp/3.15.3)。

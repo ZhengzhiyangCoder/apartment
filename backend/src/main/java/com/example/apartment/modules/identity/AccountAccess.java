@@ -17,11 +17,19 @@ public class AccountAccess {
 
     @Transactional(propagation = Propagation.MANDATORY)
     public void lockAdministrator(AccountPrincipal principal) {
+        lockBusinessActor(principal, Role.SYSTEM_ADMIN);
+    }
+
+    @Transactional(propagation = Propagation.MANDATORY)
+    public void lockBusinessActor(AccountPrincipal principal, Role... allowed) {
         // Use the same lock order as account mutations, then recheck live authorization.
         management.lockEnabledAdministrators();
         var actor = accounts.lockById(principal.id());
-        if (actor == null || !actor.enabled() || actor.role() != Role.SYSTEM_ADMIN || actor.authVersion() != principal.authVersion()) {
+        if (actor == null || !actor.enabled() || actor.role() != principal.role() || actor.authVersion() != principal.authVersion()) {
             throw new ApiException(HttpStatus.UNAUTHORIZED, "UNAUTHENTICATED", "账号权限已变化，请重新登录");
+        }
+        if (java.util.Arrays.stream(allowed).noneMatch(role -> role == actor.role())) {
+            throw new ApiException(HttpStatus.FORBIDDEN, "FORBIDDEN", "没有操作该业务的权限");
         }
     }
 

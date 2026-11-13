@@ -6,3 +6,6 @@ server:
     session:
       cookie:
         secure: false
+apartment:
+  storage:
+    root: ../.runtime/uploads/test-api

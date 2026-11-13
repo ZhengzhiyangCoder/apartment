@@ -11,6 +11,10 @@ spring:
       connection-timeout: 5000
   flyway:
     locations: classpath:db/migration
+  servlet:
+    multipart:
+      max-file-size: 6MB
+      max-request-size: 26MB
   jackson:
     time-zone: Asia/Shanghai
     deserialization:
@@ -36,3 +40,6 @@ mybatis-plus:
     map-underscore-to-camel-case: true
   global-config:
     banner: false
+apartment:
+  storage:
+    root: ${APARTMENT_STORAGE_ROOT:../.runtime/uploads/demo}

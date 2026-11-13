@@ -65,7 +65,7 @@ public class AccountAdministrationService {
         if (before.enabled() == input.enabled()) return AccountView.of(before);
         if (!input.enabled()) protectLastAdministrator(before);
         if (!input.enabled()) residencies.requireAccountVacant(id);
-        // Repair / hygiene add unfinished-business checks when those modules exist.
+        // ResidencyReferences includes unfinished repairs; hygiene extends its own future boundary.
         // Audit references are historical: retain the identity, never delete it.
         management.changeEnabled(id, input.enabled());
         return recordChange(actor, input.enabled() ? "ACCOUNT_ENABLED" : "ACCOUNT_DISABLED", before);

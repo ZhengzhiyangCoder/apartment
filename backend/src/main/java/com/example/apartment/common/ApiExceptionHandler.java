@@ -23,9 +23,19 @@ public class ApiExceptionHandler {
         return ResponseEntity.status(error.status()).body(new ApiError(error.code(), error.getMessage()));
     }
     @ExceptionHandler({MethodArgumentNotValidException.class, HttpMessageNotReadableException.class,
-            MethodArgumentTypeMismatchException.class, ConstraintViolationException.class})
+            MethodArgumentTypeMismatchException.class, ConstraintViolationException.class,
+            org.springframework.web.bind.MissingServletRequestParameterException.class,
+            org.springframework.web.multipart.support.MissingServletRequestPartException.class})
     ResponseEntity<ApiError> invalidInput(Exception error) {
         return ResponseEntity.badRequest().body(new ApiError("INVALID_INPUT", "输入格式不正确，请检查必填项及长度"));
+    }
+    @ExceptionHandler(org.springframework.web.multipart.MaxUploadSizeExceededException.class)
+    ResponseEntity<ApiError> uploadTooLarge(Exception error) {
+        return ResponseEntity.status(HttpStatus.PAYLOAD_TOO_LARGE).body(new ApiError("IMAGE_TOO_LARGE", "每单最多 5 张图片，每张不超过 5 MB"));
+    }
+    @ExceptionHandler(org.springframework.web.multipart.MultipartException.class)
+    ResponseEntity<ApiError> invalidUpload(Exception error) {
+        return ResponseEntity.badRequest().body(new ApiError("INVALID_UPLOAD", "上传格式无效，请重新选择图片后重试"));
     }
     @ExceptionHandler(AccessDeniedException.class)
     ResponseEntity<ApiError> forbidden(AccessDeniedException error) {

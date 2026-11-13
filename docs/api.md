@@ -87,3 +87,25 @@
 学生查询始终从 Session 取账号；传入 userId/studentId/roomId 不改变范围。housing 的 `CurrentResidencyQuery.findForStudent(AccountPrincipal)` 提供当前关系或 null；`requireForStudent` 在未入住时抛出 NOT_RESIDENT。后续报修和成绩服务应使用该受控边界推导位置；报修写入还需在自己的事务中处理与调寝并发的取值时点。任务 04 没有开放成绩或报修接口，不能视作相关跨业务权限已验收。
 
 审计动作：RESIDENCY_CHECKED_IN、RESIDENCY_TRANSFERRED、RESIDENCY_CHECKED_OUT；target_type 为 RESIDENCY。调寝日志 target_id 指原关系，before 为原住宿，after 包含 previous（已结束）与 current（新住宿）；操作者和时间由服务端生成。
+
+## 学生图文报修（任务 05）
+
+| 方法与路径 | 权限与输入 | 结果 |
+|---|---|---|
+| POST /api/repairs | 仅已入住学生；multipart/form-data：category、description、requestId、可选重复 images 字段；需 CSRF | 201，工单详情 |
+| GET /api/repairs | 学生仅本人；宿管与系统管理员全部；q/status/page/size | items/total/page/size |
+| GET /api/repairs/{id} | 同工单查询范围 | 工单、images、logs |
+| GET /api/repairs/{id}/images/{imageId} | 每次请求重新核验账号及工单范围 | image/png，Cache-Control: no-store |
+| POST /api/repairs/{id}/cancel | 学生本人、宿管、系统管理员；JSON reason 非空白、最多500字；需 CSRF | 200，取消后的详情 |
+
+新工单 PENDING_ASSIGNMENT（待分配）；05只提供待分配→CANCELLED（已取消）。PENDING/IN_PROGRESS/COMPLETED 为规格既定后续状态，06接入派单、待处理取消与维修角色权限；本任务不提供维修角色入口。
+
+问题类型为 PLUMBING 给排水、ELECTRICAL 电器照明、DOORS 门窗、FURNITURE 家具设施、OTHER 其他问题（当前实现的表单分类）。描述必填1–2000字；requestId为UUID，同一账号相同标识且相同内容重试返回原工单，不重复创建图片/日志。修改内容必须换新标识，复用旧标识返回409 REQUEST_REUSED。页面保留失败输入和重试标识，内容修改时生成新标识。
+
+提交人、学生、住宿、楼栋/寝室/床位及名称全由服务端认证身份和当前住宿确定，客户端传入相关标识不参与写入。与调寝/退宿/停用共用事务锁，在获取锁之后读取当前住宿；工单保留该时点的位置快照。未入住返回409 NOT_RESIDENT；本人旧单及图片在调寝、退宿后继续可读。
+
+图片每单0–5张，每张1字节至5×1024×1024字节。扩展名、MIME及实际内容须匹配JPG/JPEG、PNG、WebP；完整解码校验，最多1600万像素以限制解码资源，统一重新编码为PNG并去除原始元数据。常规无效文件400 INVALID_IMAGE；超出传输上限413 IMAGE_TOO_LARGE。HTTP总上传限制26MB，单文件传输上限6MB，业务上限仍为5MB。响应不包含磁盘路径、存储键或原文件名。
+
+q最长64字，文字包含查询描述、楼栋名、房号或提交人姓名；status只接受列出的枚举；page从1开始，size默认10、最大100，按id倒序。客户端提交人筛选不能扩大学生范围。无权工单或不存在的图片均404 REPAIR_NOT_FOUND；未登录401、无角色权限403。不存在公开静态图片目录或硬删除接口。
+
+取消需原因；重复取消和过时状态返回409 REPAIR_CHANGED，失败不追加状态日志。工单写入、图片关联、状态日志与 REPAIR_SUBMITTED / REPAIR_CANCELLED 审计同事务。磁盘写入失败会回滚；事务失败删除本次新文件。关联账号、学生资料和楼栋/寝室/床位有未完工单时，停用返回409 UNFINISHED_REPAIRS；当前入住限制仍先检查，终态历史保留且不阻止停用。
