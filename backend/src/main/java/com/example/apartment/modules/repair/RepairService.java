@@ -33,7 +33,7 @@ public class RepairService {
         var images = storage.prepare(files);
         String hash = fingerprint(category, description, images);
         // Same global lock as checkout, transfer and deactivation. Read the residence only after locking.
-        accounts.lockBusinessActor(actor, Role.STUDENT);
+        var author = accounts.lockBusinessActor(actor, Role.STUDENT);
         var previous = repairs.previous(actor.id(), requestId);
         if (previous != null) {
             if (!hash.equals(repairs.requestHash(previous))) throw new ApiException(HttpStatus.CONFLICT, "REQUEST_REUSED", "该提交标识已用于不同内容，请重新发起报修");
@@ -43,7 +43,7 @@ public class RepairService {
         repairs.insert(actor.id(), residence, category, description, requestId, hash);
         long id = repairs.insertedId();
         for (var image : images) repairs.insertImage(id, storage.save(image), image.png().length);
-        repairs.log(id, null, Status.PENDING_ASSIGNMENT, actor.id(), "提交报修");
+        repairs.log(id, null, Status.PENDING_ASSIGNMENT, author.id(), author.displayName(), "提交报修");
         var after = detail(actor, id);
         audit.record(actor.id(), "REPAIR_SUBMITTED", "REPAIR", id, null, after);
         return after;
@@ -57,12 +57,12 @@ public class RepairService {
     }
     @Transactional
     public Detail cancel(AccountPrincipal actor, long id, String reason) {
-        accounts.lockBusinessActor(actor, Role.STUDENT, Role.DORM_MANAGER, Role.SYSTEM_ADMIN);
+        var author = accounts.lockBusinessActor(actor, Role.STUDENT, Role.DORM_MANAGER, Role.SYSTEM_ADMIN);
         var before = authorized(actor, id);
         if (before.status() != Status.PENDING_ASSIGNMENT || repairs.cancel(id) != 1) {
             throw new ApiException(HttpStatus.CONFLICT, "REPAIR_CHANGED", "工单状态已变化，当前仅待分配工单可取消，请刷新后重试");
         }
-        repairs.log(id, before.status(), Status.CANCELLED, actor.id(), reason.strip());
+        repairs.log(id, before.status(), Status.CANCELLED, author.id(), author.displayName(), reason.strip());
         var after = detail(actor, id);
         audit.record(actor.id(), "REPAIR_CANCELLED", "REPAIR", id, before, after);
         return after;

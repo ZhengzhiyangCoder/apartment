@@ -21,7 +21,7 @@ public class AccountAccess {
     }
 
     @Transactional(propagation = Propagation.MANDATORY)
-    public void lockBusinessActor(AccountPrincipal principal, Role... allowed) {
+    public AccountView lockBusinessActor(AccountPrincipal principal, Role... allowed) {
         // Use the same lock order as account mutations, then recheck live authorization.
         management.lockEnabledAdministrators();
         var actor = accounts.lockById(principal.id());
@@ -31,6 +31,7 @@ public class AccountAccess {
         if (java.util.Arrays.stream(allowed).noneMatch(role -> role == actor.role())) {
             throw new ApiException(HttpStatus.FORBIDDEN, "FORBIDDEN", "没有操作该业务的权限");
         }
+        return AccountView.of(actor);
     }
 
     @Transactional(propagation = Propagation.MANDATORY)

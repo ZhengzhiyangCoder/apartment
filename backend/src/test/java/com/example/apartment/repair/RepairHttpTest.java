@@ -78,6 +78,7 @@ class RepairHttpTest extends HttpIntegrationTest {
         assertThat(result.path("images").size()).isEqualTo(1);
         assertThat(result.path("logs").size()).isEqualTo(1);
         assertThat(result.path("logs").get(0).path("toStatus").asText()).isEqualTo("PENDING_ASSIGNMENT");
+        assertThat(result.path("logs").get(0).path("actorName").asText()).isEqualTo("模拟STUDENT");
         var content = image(student, result.path("images").get(0).path("url").asText());
         assertThat(content.statusCode()).isEqualTo(200);
         assertThat(ImageIO.read(new java.io.ByteArrayInputStream(content.body())).getWidth()).isEqualTo(8);

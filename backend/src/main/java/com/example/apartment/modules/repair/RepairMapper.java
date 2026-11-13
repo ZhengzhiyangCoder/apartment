@@ -29,8 +29,8 @@ public interface RepairMapper {
     List<RepairViews.Image> images(long order);
     @Select("SELECT storage_key FROM repair_image WHERE order_id = #{order} AND id = #{id}")
     String imageKey(long order, long id);
-    @Insert("INSERT INTO repair_status_log(order_id, from_status, to_status, actor_id, actor_name, note) VALUES(#{order}, #{from}, #{to}, #{actor}, (SELECT display_name FROM sys_user WHERE id = #{actor}), #{note})")
-    void log(long order, RepairViews.Status from, RepairViews.Status to, long actor, String note);
+    @Insert("INSERT INTO repair_status_log(order_id, from_status, to_status, actor_id, actor_name, note) VALUES(#{order}, #{from}, #{to}, #{actor}, #{actorName}, #{note})")
+    void log(long order, RepairViews.Status from, RepairViews.Status to, long actor, String actorName, String note);
     @Select("SELECT id, from_status, to_status, actor_id, actor_name, note, created_at FROM repair_status_log WHERE order_id = #{order} ORDER BY id")
     List<RepairViews.Log> logs(long order);
     @Update("UPDATE repair_order SET status = 'CANCELLED', updated_at = CURRENT_TIMESTAMP(6) WHERE id = #{id} AND status = 'PENDING_ASSIGNMENT'")
