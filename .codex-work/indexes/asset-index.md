@@ -2,6 +2,8 @@
 
 核验日期：2026-11-11。以下是用户提供的业务讨论资料，原文件未修改；已于需求访谈启动时逐字节复制到项目 docs/reference/，项目副本供后续读取。微信原路径保留用于来源追溯。
 
+2026-11-13补充核验：两条微信临时来源路径当前未找到；项目内下列副本均存在，SHA-256与原登记一致。保留原路径仅作来源追溯，后续读取使用项目副本。
+
 | 名称 | 入口 | 核验与限制 |
 |---|---|---|
 | PRD V1.2 | [/Users/iknow/Library/Containers/com.tencent.xinWeChat/Data/Documents/xwechat_files/wxid_9t386at625rc22_3a9a/temp/drag/高校宿舍管理系统_PRD_V1.2.md](/Users/iknow/Library/Containers/com.tencent.xinWeChat/Data/Documents/xwechat_files/wxid_9t386at625rc22_3a9a/temp/drag/高校宿舍管理系统_PRD_V1.2.md) | UTF-8，完整读取；含已确认决策、默认假设和技术建议 |
