@@ -1,4 +1,4 @@
-# 接口说明 — 任务 01–04
+# 接口说明 — 任务 01–07
 
 所有路径从前端同源入口的 `/api` 访问。Session Cookie 名称为 `APARTMENTSESSION`，不与同机其他项目的默认 Cookie 混用。JSON 查询不返回密码、密码哈希或内部会话字段。
 
@@ -128,3 +128,26 @@ q最长64字，文字包含查询描述、楼栋名、房号或提交人姓名�
 维修人员范围从Session身份确定：只能读取当前分配给自己的工单、历史状态和图片，传入assigneeId/owner等参数不能扩大范围。重分配后旧负责人后续列表不含该单，详情、图片及开始/完成请求均404；最终负责人仍可查看已完成/已取消记录。其他角色的本人/全校范围不变。401会话失效、403角色/CSRF拒绝、404工单不存在或无权限，均不泄露存储路径。
 
 派单、重分配、开始、完成、取消和账号停用/角色变更共用事务写锁，在锁内重新校验有效身份、最新负责人及状态。操作、责任人/时间/结果、状态日志及审计整体提交；失败不留下部分变化。审计新增REPAIR_ASSIGNED、REPAIR_REASSIGNED、REPAIR_STARTED、REPAIR_COMPLETED，target_type=REPAIR，保存前后快照。当前负责人有未完工单时，停用或改换角色均409 UNFINISHED_REPAIRS；终态历史不阻止停用，记录和外键继续保留。
+
+## 评分方案与版本（任务07）
+
+| 方法与路径 | 输入 | 权限与结果 |
+|---|---|---|
+| GET /api/hygiene/schemes | q/status/page/size | 系统管理员全部；宿管仅已启用/历史；items/total/page/size/active |
+| GET /api/hygiene/schemes/{id} | 正整数id | 同上；方案详情与按顺序排列的dimensions |
+| POST /api/hygiene/schemes | name/threshold/dimensions | 仅系统管理员；创建草稿，201 |
+| POST /api/hygiene/schemes/{id} | definition/version | 仅系统管理员；编辑草稿，200 |
+| POST /api/hygiene/schemes/{id}/copy | version | 仅系统管理员；复制为新草稿，201 |
+| POST /api/hygiene/schemes/{id}/activate | version/activeId | 仅系统管理员；启用，200 |
+
+全部写入需CSRF。学生与维修人员无此管理接口权限；宿管查草稿或未知id返回404 SCHEME_NOT_FOUND。没有删除接口。学生查看成绩绑定标准由11提供。
+
+定义结构为`{name, threshold, dimensions: [{name, weight}]}`；方案名称及维度名称必填、不可空白、最多64字，保存去除首尾空白；同一方案维度名称不可重复，1–20项，数组顺序即展示顺序。weight必填，threshold省略/null默认60；均为0–100十进制数、最多两位小数，不接受舍入后再保存。草稿总权重可暂不等于100，启用时精确合计必须等于100，否则400 WEIGHT_TOTAL。精度/范围错误400 INVALID_WEIGHT或INVALID_THRESHOLD，维度重名400 DUPLICATE_DIMENSION。
+
+方案返回id/name/threshold/status/version/sourceId/createdAt/updatedAt/activatedAt/totalWeight/dimensionCount；详情另含dimensions，其元素为id/name/weight/sortOrder。id标识独立方案版本，version是并发编辑计数；sourceId记录复制来源，独立创建时为空。时间由数据库生成并以UTC ISO格式返回。状态为DRAFT（草稿）、ACTIVE（已启用）、ARCHIVED（历史）。新草稿不自动启用。首次启用后定义固定，旧启用版本自动归档；修改或重新采用历史标准时复制新草稿，原定义和首次启用时间保留。
+
+写入version为非负整数，必须来自最新对象；过期409 SCHEME_CHANGED。编辑/启用已发布版本返回409 SCHEME_FROZEN。启用额外提交当前`active.id`，暂无启用时activeId=0；比较不符返回409 ACTIVE_SCHEME_CHANGED，需重新读取并确认切换。成功切换同时归档旧版本、启用新版本与写审计；任何一步失败全部回滚，并发旧窗口不能覆盖先成功的选择。
+
+q为最多64字的名称字面包含匹配，区分大小写；status为上述枚举，宿管筛DRAFT只得到空列表。page从1开始，size默认10、上限100，固定id倒序。active独立于列表筛选，返回当前启用摘要或null；只读查询不创建或启用方案。审计动作SCHEME_CREATED/UPDATED/COPIED/ARCHIVED/ACTIVATED，target_type=SCHEME，包含前后定义快照，操作者来自Session。
+
+本任务冻结所有已启用/历史定义，未建立检查批次或伪造引用。08创建批次时需在同一写锁内绑定当时的ACTIVE方案及维度，保存真实外键与名单；用真实批次回归切换方案不改变已绑定标准。

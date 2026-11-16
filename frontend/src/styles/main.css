@@ -758,3 +758,13 @@ button {
 .repair-responsibility { margin: 18px 0; padding: 14px 18px; border-radius: 14px; box-shadow: var(--pressed); }
 .repair-responsibility p { margin: 6px 0; }
 .repair-workflow { margin: 18px 0; }
+
+.scheme-current { display: flex; justify-content: space-between; align-items: center; gap: 24px; padding: 24px 30px; margin-bottom: 24px; }
+.scheme-current h2 { margin: 4px 0 8px; overflow-wrap: anywhere; }
+.scheme-current .el-button { flex-shrink: 0; }
+.scheme-table th:first-child { width: 30%; }
+.scheme-table th:last-child { width: 230px; }
+.scheme-table td { overflow-wrap: anywhere; }
+.scheme-dimensions { border: 1px solid #c3cbd4; border-radius: 16px; padding: 16px; }
+.scheme-dimensions legend { padding: 0 8px; }
+.scheme-dimension { display: grid; grid-template-columns: minmax(0, 1fr) 160px auto; gap: 16px; align-items: end; margin-bottom: 18px; }

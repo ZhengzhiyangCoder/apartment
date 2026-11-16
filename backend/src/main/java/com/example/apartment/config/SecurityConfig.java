@@ -64,6 +64,8 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.GET, "/api/repairs", "/api/repairs/*", "/api/repairs/*/images/*").hasAnyRole("STUDENT", "SYSTEM_ADMIN", "DORM_MANAGER", "MAINTAINER")
                 .requestMatchers(HttpMethod.POST, "/api/repairs").hasRole("STUDENT")
                 .requestMatchers(HttpMethod.POST, "/api/repairs/*/cancel").hasAnyRole("STUDENT", "SYSTEM_ADMIN", "DORM_MANAGER")
+                .requestMatchers(HttpMethod.GET, "/api/hygiene/schemes", "/api/hygiene/schemes/*").hasAnyRole("SYSTEM_ADMIN", "DORM_MANAGER")
+                .requestMatchers(HttpMethod.POST, "/api/hygiene/schemes", "/api/hygiene/schemes/*", "/api/hygiene/schemes/*/copy", "/api/hygiene/schemes/*/activate").hasRole("SYSTEM_ADMIN")
                 .anyRequest().denyAll())
             .formLogin(form -> form.loginProcessingUrl("/api/auth/login")
                 .successHandler((request, response, authentication) -> {

@@ -1,6 +1,6 @@
-# 实际数据库 — 任务 01–06
+# 实际数据库 — 任务 01–07
 
-版本迁移是唯一结构执行来源：`backend/src/main/resources/db/migration/` 中 V1 身份表、V2 账号审计表与角色状态索引、V3 楼栋、V4 寝室床位、V5 学生资料、V6 住宿关系、V7 报修工单/图片/状态日志、V8 派单责任与处理结果。当前不提前建立后续业务模块空表。原始 18 表设计为后续任务的建模输入，不是已经运行的数据库。
+版本迁移是唯一结构执行来源：`backend/src/main/resources/db/migration/` 中 V1 身份表、V2 账号审计表与角色状态索引、V3 楼栋、V4 寝室床位、V5 学生资料、V6 住宿关系、V7 报修工单/图片/状态日志、V8 派单责任与处理结果、V9 评分方案与维度。当前不提前建立后续业务模块空表。原始 18 表设计为后续任务的建模输入，不是已经运行的数据库。
 
 ## sys_user
 
@@ -32,7 +32,7 @@ Flyway 另外维护自身迁移历史表。账号与学生资料的分工保持�
 | id | 自增主键 |
 | actor_id | 操作者 sys_user 外键，不允许级联删除身份 |
 | action | ACCOUNT_CREATED / ACCOUNT_ROLE_CHANGED / ACCOUNT_PASSWORD_RESET / ACCOUNT_DISABLED / ACCOUNT_ENABLED |
-| target_type / target_id | ACCOUNT / BUILDING / ROOM / BED / STUDENT / RESIDENCY / REPAIR 与对应目标 ID |
+| target_type / target_id | ACCOUNT / BUILDING / ROOM / BED / STUDENT / RESIDENCY / REPAIR / SCHEME 与对应目标 ID |
 | before_data / after_data | 白名单账号或住宿资料快照 JSON；创建的 before_data 为 null；不存密码或哈希 |
 | created_at | 数据库生成的实际操作时间，微秒精度 |
 
@@ -106,3 +106,16 @@ repair_status_log新增可空previous_assignee_id/name、assignee_id/name，人�
 合法主链为PENDING_ASSIGNMENT→PENDING→IN_PROGRESS→COMPLETED；取消仅从前两态进入CANCELLED。共享事务锁与带version的条件更新防止旧命令覆盖责任人，账号启停/角色变化遵循相同锁序。日志或审计插入失败时，责任人、状态、时间、处理说明与版本全部回滚。
 
 回退不通过删除新列或倒退Flyway实现；若需修正，新增前向迁移并保留既有引用。测试清理仍按已确认的固定apartment_test白名单执行，演示库原地升级。全量/升级验证结果见[测试说明](testing.md)。
+
+## 评分方案与维度（任务07，V9）
+
+| 表 | 字段与约束 |
+|---|---|
+| hygiene_scheme | id独立版本标识；name；threshold DECIMAL(5,2)默认60、0–100 CHECK；status DRAFT/ACTIVE/ARCHIVED CHECK；version并发计数；source_id自引用外键；created_at/updated_at/activated_at |
+| hygiene_scheme_dimension | id；scheme_id外键；name；weight DECIMAL(5,2)、0–100 CHECK；sort_order为1–20 CHECK；同方案名称与顺序各有唯一约束 |
+
+方案的active_slot为存储生成列：ACTIVE时为1，其余为NULL，UNIQUE约束使全库最多一个启用版本。列表按status/id索引；字符集沿用utf8mb4/utf8mb4_0900_as_cs。外键无级联删除，业务无硬删除入口；草稿编辑可在同一事务内替换其维度，已发布版本不能进入此路径。复制产生新方案和新维度ID，来源外键保留版本关系。
+
+应用在MySQL存储前使用BigDecimal检查小数位及范围，启用时精确相加为100。创建、草稿编辑、复制、启用与归档复用AccountAccess管理员锁，锁后读取最新状态和version。启用还核对调用者确认的当前启用id；新旧状态和两条审计原子提交。只读事务不拿写锁或追加日志。
+
+V9只新增两表，V1–V8不变，无演示数据或批次占位表。首次启用即冻结定义，任务08再以真实批次外键绑定版本，回归启用切换和已绑定历史不可变性。撤销不删除历史，需备份后追加前向修正迁移。测试清理先删除维度，再按id倒序删除方案（复制来源总是较早记录）；仅apartment_test允许清理，正常seed不清理方案。
