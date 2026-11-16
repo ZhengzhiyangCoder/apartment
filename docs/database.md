@@ -168,3 +168,15 @@ V13采用前向修正，不提供破坏性的自动DOWN。应用回退前须停�
 ## 任务12管理统计查询
 
 无新增表、索引、依赖或迁移，V1–V13保持原样。StatisticsMapper复用ResultMapper的有效周期条件与精确AVG/ROUND；左连接正式成绩到应检快照统计寝室次，先聚合寝室周期分再聚合楼栋。按楼栋窗口RANK保持学生端楼内名次。维度读取正式明细快照，按方案/楼栋/维度定义分组。统计在同一只读事务中完成，无缓存，不影响评分、整改或审计写入。
+
+## V14 整改闭环
+
+只追加hygiene_rectification、hygiene_rectification_trigger、hygiene_rectification_log三表，V1–V13不变，不写模拟业务数据。
+
+- 事件保存原楼栋/寝室名称、房间标识、OPEN/CLOSED、version、创建/更新/当前核实/关闭时间。open_room_id生成列在OPEN时为room_id，唯一键保证同寝室最多一条未关闭事件；关闭必须有核实和关闭时间。
+- 触发关联按(event_id,score_id)唯一，外键引用正式评分，从正式评分追溯原批次/方案；total_score/threshold保存触发时快照，后续方案改变不回写。约束保证0≤触发成绩<当时阈值≤100。原批次的归属周与状态在查询时呈现。
+- 管理日志保存TRIGGERED/FOLLOW_UP/VERIFIED/CLOSED及操作者名称快照、时间、完整说明。外键保留所有历史，不级联删除；(event_id,id)索引服务有序历史。
+- 正式提交、事件生成/复用、触发关联、个人草稿清除、业务日志与operation_log在同一事务中完成，共用既有业务写锁。核实/跟进/关闭还比对事件version；新的低分递增版本并清除verified_at，旧核实日志不变。
+- housing通过RectificationReferences检查未关闭事件，阻止所属楼栋/寝室停用；整改对象是寝室，不绑定床位或学生个人，退宿不删除事件。闭环后可停用，历史仍可管理查询。
+
+新增审计动作RECTIFICATION_TRIGGERED、RECTIFICATION_FOLLOW_UP、RECTIFICATION_VERIFIED、RECTIFICATION_CLOSED，target_type=RECTIFICATION。正常seed保留事件；固定apartment_test重置先删整改日志和关联再删事件及原评分。应用回退前须停写并备份全部新增记录，不能以旧版评分写入继续运行；采用后续前向迁移修正，不提供破坏性的DOWN。任务14接入成绩更正，17验证规模性能。

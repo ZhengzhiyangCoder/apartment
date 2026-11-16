@@ -262,3 +262,19 @@ SCORE_DRAFT_SAVED审计与暂存同事务，target_type=BATCH；仅记录roomId�
 - weeks：仅寝室范围提供，与学生端共享历史方案、阈值、原维度和有效正式成绩明细；停检标记与原标准仍可见，成绩不计入有效值。
 
 所有均分、趋势、维度、排名及完成率均排除SUSPENDED，恢复实时纳入；CLOSED有效，草稿不计，零分有效。归属按批次week_start，补录实际submittedAt不改变原周期。完成率按当前调整后的批次应检快照累计，不按实时入住重算历史。
+
+## 卫生整改（任务13）
+
+管理角色 SYSTEM_ADMIN / DORM_MANAGER 可访问以下接口；学生/维修人员403，匿名或撤销会话401。全部POST需CSRF和当前权限校验。
+
+- `GET /api/hygiene/rectifications?status=OPEN&q=101&page=1&size=10`：status可省略查全部，OPEN未关闭/CLOSED已关闭；q按触发时楼名/房号搜索，最多64字；可选正整数buildingId。页码≥1，每页1–100，超界返回空items与真实total。返回items/total/page/size，按事件id倒序。
+- `GET /api/hygiene/rectifications/{id}`：事件位置快照、状态、版本、触发/更新时间、当前verifiedAt、closedAt，加triggers（原评分id、原批次/方案、当时分数/阈值、当前分数及批次状态）和logs（动作、操作人名称快照、说明、时间）。不存在404。
+- `POST /api/hygiene/rectifications/{id}/follow-ups`：记录跟进。
+- `POST /api/hygiene/rectifications/{id}/verify`：记录核实结果，标记已核实。
+- `POST /api/hygiene/rectifications/{id}/close`：核实后填写关闭说明；缺少核实409。关闭后只读。
+
+三个命令请求均为`{version: 0, note: "处理说明"}`；版本必填非负，说明必填非空白、最多1000字。成功200并返回完整详情，版本递增；旧版本409 `RECTIFICATION_CHANGED`。状态、管理日志和审计同事务，失败不部分提交。
+
+正式评分在原提交事务内按`totalScore < threshold`判定，不由列表触发，不按周月或楼栋均分判定。首次低分建OPEN事件；后续同寝室低分复用事件并追加评分依据，清除当前核实标记（既有核实日志保留），要求重新核实。后续合格不自动关闭。关闭后新的检查低分另建事件。批次停检/恢复不删除或自动关闭整改，详情显示批次状态；历史补录仍关联原周及原阈值。
+
+页面`/rectifications`默认查未关闭，可切换全部/已关闭并按楼名房号筛选；跟进弹窗保留失败输入，版本冲突后显式重新载入核对。关闭不删历史，新增低分后仍须重新核实。成绩更正及“触发成绩已更正”提示由14继续实现。

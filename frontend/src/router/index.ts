@@ -13,6 +13,7 @@ import RepairsPage from '../features/repair/RepairsPage.vue'
 import InspectionsPage from '../features/hygiene/InspectionsPage.vue'
 import SchemesPage from '../features/hygiene/SchemesPage.vue'
 import StudentResultsPage from '../features/hygiene/StudentResultsPage.vue'
+import RectificationsPage from '../features/hygiene/RectificationsPage.vue'
 import StatisticsPage from '../features/hygiene/StatisticsPage.vue'
 import AppLayout from '../layouts/AppLayout.vue'
 
@@ -29,6 +30,7 @@ export const router = createRouter({
       { path: 'residencies', component: ResidencyPage, meta: { role: 'SYSTEM_ADMIN' } },
       { path: 'my-residency', component: MyResidencyPage, meta: { role: 'STUDENT' } },
       { path: 'my-results', component: StudentResultsPage, meta: { role: 'STUDENT' } },
+      { path: 'rectifications', component: RectificationsPage, meta: { roles: ['SYSTEM_ADMIN', 'DORM_MANAGER'] } },
       { path: 'statistics', component: StatisticsPage, meta: { roles: ['SYSTEM_ADMIN', 'DORM_MANAGER'] } },
       { path: 'repairs', component: RepairsPage, meta: { roles: ['STUDENT', 'SYSTEM_ADMIN', 'DORM_MANAGER', 'MAINTAINER'] } },
       { path: 'inspections', component: InspectionsPage, meta: { roles: ['SYSTEM_ADMIN', 'DORM_MANAGER'] } },

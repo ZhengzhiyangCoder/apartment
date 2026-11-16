@@ -15,6 +15,7 @@ import static com.example.apartment.modules.hygiene.BatchViews.*;
 @Service
 public class BatchService {
     private final BatchMapper batches;
+    private final RectificationService rectifications;
     private final SchemeMapper schemes;
     private final InspectionHousingQuery housing;
     private final AccountAccess accounts;
@@ -23,9 +24,9 @@ public class BatchService {
     private final DraftMapper drafts;
     private final com.fasterxml.jackson.databind.ObjectMapper json;
     private final com.example.apartment.support.audit.BatchChangeQuery changes;
-    public BatchService(BatchMapper batches, SchemeMapper schemes, InspectionHousingQuery housing, AccountAccess accounts, AuditWriter audit, Clock clock,
+    public BatchService(RectificationService rectifications, BatchMapper batches, SchemeMapper schemes, InspectionHousingQuery housing, AccountAccess accounts, AuditWriter audit, Clock clock,
             DraftMapper drafts, com.fasterxml.jackson.databind.ObjectMapper json, com.example.apartment.support.audit.BatchChangeQuery changes) {
-        this.batches=batches; this.schemes=schemes; this.housing=housing; this.accounts=accounts; this.audit=audit; this.clock=clock;
+        this.rectifications=rectifications; this.batches=batches; this.schemes=schemes; this.housing=housing; this.accounts=accounts; this.audit=audit; this.clock=clock;
         this.drafts=drafts; this.json=json; this.changes=changes;
     }
     @Transactional(readOnly = true)
@@ -152,7 +153,7 @@ public class BatchService {
     }
     @Transactional
     public Score submit(AccountPrincipal actor, long id, long roomId, ScoreRequests.Submit input) {
-        accounts.lockBusinessActor(actor,Role.DORM_MANAGER);
+        var author=accounts.lockBusinessActor(actor,Role.DORM_MANAGER);
         var now=clock.instant();var batch=require(id);var week=Week.at(now);
         requireScoringAllowed(batch,week);
         var room=requireRoom(id,roomId);
@@ -173,6 +174,7 @@ public class BatchService {
         long scoreId=batches.insertedId();
         for(var dimension:dimensions) batches.insertScoreDimension(scoreId,dimension.id(),dimension.name(),dimension.weight(),supplied.get(dimension.id()),dimension.sortOrder());
         var result=score(id,roomId);
+        rectifications.trigger(author,room,result.summary());
         drafts.clear(actor.id(),id,roomId);
         audit.record(actor.id(),"SCORE_SUBMITTED","SCORE",scoreId,null,result);
         return result;
