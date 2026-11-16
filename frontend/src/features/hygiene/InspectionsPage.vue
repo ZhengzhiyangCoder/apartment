@@ -187,6 +187,7 @@ function corrected(score: FormalScore) {
 const route = useRoute()
 onMounted(async () => {
   const batch = Number(route.query.batch), room = Number(route.query.room)
+  if (route.query.inspected === 'true' || route.query.inspected === 'false') query.inspected = route.query.inspected
   if (Number.isSafeInteger(batch) && batch > 0) selectedBatchId.value = batch
   const initialRequest = loadRequest + 1
   void loadDrafts(); await load()

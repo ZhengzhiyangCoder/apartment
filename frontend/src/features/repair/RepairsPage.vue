@@ -104,6 +104,8 @@ async function workflow(action: 'assign' | 'reassign' | 'start' | 'complete') {
 }
 const route = useRoute()
 onMounted(async () => {
+  const status = route.query.status
+  if (typeof status === 'string' && Object.hasOwn(statuses, status)) query.status = status
   await load()
   const id = Number(route.query.record)
   if (Number.isSafeInteger(id) && id > 0) await view(id)

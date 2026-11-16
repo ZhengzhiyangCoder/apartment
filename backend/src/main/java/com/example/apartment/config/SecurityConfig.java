@@ -43,7 +43,7 @@ public class SecurityConfig {
                 .dispatcherTypeMatchers(DispatcherType.ERROR).permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/auth/csrf").permitAll()
                 .requestMatchers(HttpMethod.POST, "/api/auth/login").permitAll()
-                .requestMatchers(HttpMethod.GET, "/api/auth/me", "/api/identity/workspaces/*").authenticated()
+                .requestMatchers(HttpMethod.GET, "/api/auth/me", "/api/identity/workspaces/*", "/api/dashboard").authenticated()
                 .requestMatchers(HttpMethod.POST, "/api/auth/password").authenticated()
                 .requestMatchers(HttpMethod.GET, "/api/identity/accounts", "/api/identity/accounts/*").hasRole("SYSTEM_ADMIN")
                 .requestMatchers(HttpMethod.POST, "/api/identity/accounts").hasRole("SYSTEM_ADMIN")

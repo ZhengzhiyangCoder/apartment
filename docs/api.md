@@ -1,4 +1,4 @@
-# 接口说明 — 任务 01–11
+# 接口说明 — 任务 01–16
 
 所有路径从前端同源入口的 `/api` 访问。Session Cookie 名称为 `APARTMENTSESSION`，不与同机其他项目的默认 Cookie 混用。JSON 查询不返回密码、密码哈希或内部会话字段。
 
@@ -306,3 +306,19 @@ references含固定应用内路径，使用稳定业务ID定位当前来源；�
 为精确定位，新增 `GET /api/identity/accounts/{id}` 和 `GET /api/housing/{buildings|rooms|beds|students|residencies}/{id}`。账号/学生资料/住宿关系仅SYSTEM_ADMIN；楼栋/寝室/床位两管理角色只读。返回原有公开视图，不存在404，保留停用资料及历史住宿。界面“退出记录定位”恢复普通列表。
 
 住宿资料来源显式提供kind时，页面校验分类及当前角色；未知分类显示错误，无权访问学生资料的角色跳转拒绝页，不以同ID楼栋替代原对象。
+
+## 四角色工作台（任务16）
+
+`GET /api/dashboard`：所有已登录角色可访问；身份和角色仅从会话推导，客户端role、roomId、submittedBy或assigneeId不扩大范围。账号禁用、角色变更或会话撤销后旧会话返回401。仅提供GET，不接收业务写入。
+
+响应包含role/title及以下角色内容；不适用的inspection、rectifications、residency、results为null。
+
+| 角色 | 内容与查询口径 |
+|---|---|
+| 系统管理员 / 宿舍管理员 | inspection复用本周批次查询；rectifications为OPEN整改分页（前5项及完整total）；repairs为PENDING_ASSIGNMENT、PENDING、IN_PROGRESS三个队列 |
+| 学生 | residency为本人当前住宿或null；results为当前寝室本周period/summary（无入住为null，无成绩score为null）；repairs只有status=null的本人全部工单队列，含历史工单 |
+| 维修人员 | repairs为本人PENDING、IN_PROGRESS队列，不返回他人任务 |
+
+每个工单队列为`{status,page:{items,total,page,size}}`，第一页size=5，total不受摘要截断影响；分页与排序复用原工单列表。检查的无批次、无应检及停检状态沿原查询返回，completionRate为null时不展示虚假完成率。各模块在统一只读事务内读取，不创建批次、审计或衍生业务表。学生成绩沿原统计口径处理更正与停检。
+
+工作台工单入口`/repairs?status=<合法状态>`预选状态，`record`仍按原授权打开详情；检查入口`/inspections?batch=<id>&inspected=false`定位对应批次的未检列表，原room定位的异步取消保护保持。首页每次进入、手动刷新和窗口聚焦重新获取数据，刷新/失败清除旧结果，迟到响应不覆盖新查询。

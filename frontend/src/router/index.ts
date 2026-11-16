@@ -2,7 +2,7 @@ import { createRouter, createWebHistory } from 'vue-router'
 import { currentUser, refreshUser, workspacePath } from '../features/identity/session'
 import LoginPage from '../features/identity/LoginPage.vue'
 import ProfilePage from '../features/identity/ProfilePage.vue'
-import WorkspacePage from '../features/identity/WorkspacePage.vue'
+import DashboardPage from '../features/dashboard/DashboardPage.vue'
 import PasswordPage from '../features/identity/PasswordPage.vue'
 import AccessPage from '../features/identity/AccessPage.vue'
 import AccountsPage from '../features/identity/AccountsPage.vue'
@@ -23,8 +23,8 @@ export const router = createRouter({
   routes: [
     { path: '/login', component: LoginPage },
     { path: '/', component: AppLayout, meta: { authenticated: true }, children: [
-      { path: '', component: WorkspacePage },
-      { path: 'workspace/:role', component: WorkspacePage },
+      { path: '', component: DashboardPage },
+      { path: 'workspace/:role', component: DashboardPage },
       { path: 'profile', component: ProfilePage },
       { path: 'password', component: PasswordPage },
       { path: 'audit', component: AuditPage, meta: { roles: ['SYSTEM_ADMIN', 'DORM_MANAGER'] } },

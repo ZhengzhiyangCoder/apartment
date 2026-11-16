@@ -194,3 +194,7 @@ V15为hygiene_score添加非负version默认0，新增hygiene_score_correction�
 复用V2 `operation_log`，本轮无新表、新迁移或历史数据回写；V1–V16保持原样。业务写入仍由原服务在各自事务内调用AuditWriter。按actor/target/action/time筛选并按created_at,id稳定排序，已有对象索引与时间索引保持。统一查询的元数据与详情投影只读；操作者名称经identity受控批量查询，不从审计层绕过业务Mapper。
 
 审计详情只是操作时的必要快照；`repair_status_log`、`hygiene_score_correction`、`hygiene_rectification_log`和原业务记录继续承担各自历史事实。按稳定ID定位可跨资料改名、停用和调寝；有活动业务引用的停用仍由原事务边界拒绝。查询不得暴露凭据、私有草稿或复制完整工单时间线。
+
+## 任务16 工作台只读汇总
+
+没有新增迁移或表，V1–V16保持不变。dashboard模块通过既有领域服务查询当前批次、整改、工单、当前住宿与学生成绩；统一只读事务，不持久化另一套待办计数、成绩或住宿事实。普通首页GET不准备批次、不追加审计或模拟业务。
