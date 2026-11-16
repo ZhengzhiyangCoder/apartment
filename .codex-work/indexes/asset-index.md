@@ -158,3 +158,11 @@
 - [统计查询](../../backend/src/main/java/com/example/apartment/modules/hygiene/ResultMapper.java)、[学生服务](../../backend/src/main/java/com/example/apartment/modules/hygiene/StudentResultsService.java)、[页面](../../frontend/src/features/hygiene/StudentResultsPage.vue)、[API测试](../../backend/src/test/java/com/example/apartment/hygiene/StudentResultsHttpTest.java)、[浏览器测试](../../frontend/e2e/results.spec.ts)。
 - [测试](../../docs/testing.md)：81后端、96全量两尺寸浏览器、构建及演示重启数据不变；[演示](../../docs/demo.md)、[API](../../docs/api.md)、[数据库](../../docs/database.md)、[运行](../../docs/local-run.md)更新。
 - [截图](../../output/playwright/)task11-results/detail/transferred/empty各两尺寸。无新依赖或迁移；复用既有测试工具，.runtime一次性脚本不登记全局资产。下一项12待开始。
+
+
+## 任务12管理端统计（2026-11-16）
+
+- [任务票](../../.scratch/dorm-management/issues/12-management-statistics.md)、[归档卡](../task-cards/completed/20261116-task12-implement.md)、[实施](../logs/20261116-task12-implement.md)、[独立审查](../logs/20261116-task12-review.md)。
+- [统计查询](../../backend/src/main/java/com/example/apartment/modules/hygiene/StatisticsMapper.java)、[管理服务](../../backend/src/main/java/com/example/apartment/modules/hygiene/StatisticsService.java)、[共用明细](../../backend/src/main/java/com/example/apartment/modules/hygiene/ResultDetailsQuery.java)、[实际页面](../../frontend/src/features/hygiene/StatisticsPage.vue)、[API测试](../../backend/src/test/java/com/example/apartment/hygiene/ManagementStatisticsHttpTest.java)、[浏览器测试](../../frontend/e2e/statistics.spec.ts)。
+- [测试](../../docs/testing.md)：87后端/104全量双尺寸Chrome、构建、原演示数据与图片摘要重启保留；[API](../../docs/api.md)、[数据库](../../docs/database.md)、[演示](../../docs/demo.md)、[运行](../../docs/local-run.md)同步更新。
+- [截图](../../output/playwright/)task12-building/room/empty各两尺寸共6张。复用既有项目工具、学生图表与历史明细，不新增依赖/迁移；.runtime一次性核验不登记全局资产。下一项13未启动。
