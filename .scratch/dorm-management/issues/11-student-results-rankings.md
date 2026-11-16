@@ -45,3 +45,5 @@ Type: task
 
 
 - 2026-11-12：04 已提供 `CurrentResidencyQuery`，学生范围仅从 AccountPrincipal 推导；本票调用当前住宿确定寝室/楼栋并验证调寝后新范围生效、旧寝室请求被拒、退宿后成绩/榜单不可访问。04 只验证住宿查询变化，未将成绩权限或旧报修跨业务验收提前标为通过。此为衔接记录，未启动本票。
+
+- 2026-11-16：10已实现真实CLOSE/REOPEN/SUSPEND/RESTORE与名单调整API、历史授权字段historical_reopened和停检前状态suspended_from。补录继续原batch.week_start/scheme_id/threshold，实际score.submitted_at可晚于归属周；统计必须按原周一归月。只统计正式成绩并排除status=SUSPENDED，CLOSED仍保留有效成绩；本票用真实停检/恢复接口验证样本排除及重新纳入，不能仅依据scoringAllowed过滤统计。10的completionRate为单批次原始检查进度，不代表完成率考核聚合。此为衔接记录，本票未启动。

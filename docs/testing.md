@@ -1,6 +1,6 @@
-# 测试与验收记录 — 任务 01–05
+# 测试与验收记录 — 任务 01–10
 
-最新日期：2026-11-13（Asia/Shanghai）。任务 01–05 验证完成；后续业务及整套系统验收尚未完成。
+最新日期：2026-11-16（Asia/Shanghai）。任务01–10验证完成；本页按阶段保留历史证据，最新结果见任务10。后续业务及整套系统验收尚未完成。
 
 ## 边界与隔离
 
@@ -171,3 +171,18 @@ API 测试位于后端 IdentityHttpTest，运行前核对数据库产品为 MySQ
 
 
 最终全量Chrome **76项通过**（原66+新增10，7.1分钟），`.runtime/task09-browser-final.log`；其后仅补连续队列范围提示，vue-tsc/Vite再次通过（`.runtime/task09-review-build.log`），无逻辑变更。两库均12项成功迁移、临时故障约束0；测试服务退出、演示5174/8081/3308保留。任务09七条准则在本票分工内闭环，10待开始。
+
+
+## 任务10批次治理与历史补录最终验证
+
+- 后端`./scripts/backend.sh -B verify`：**75项通过**（原67+BatchGovernanceHttpTest新增8），JAR成功，证据.runtime/task10-backend-final.log。先固定apartment_test库名及18表白名单，再仅清理测试schema，实际空库完整迁移V1–V13。V1–V12未修改；V13也从已有V12原地升级验证。
+- 前端vue-tsc/Vite通过，证据.runtime/task10-frontend-final.log，审查修正后task10-review-build.log再次通过。
+- 全量Chrome`npm --prefix frontend run test:e2e`：**82项通过**，两尺寸各41项，8.1分钟，证据.runtime/task10-browser-final.log。审查新增2条复现场景（每尺寸各2项），修正后`batches.spec.ts`全部**28项通过**，证据.runtime/task10-review-browser.log；覆盖原有录分/草稿与本票治理。不是声称86项在同一全量命令运行，也不将重复场景累计。
+- 新API场景覆盖状态恢复、草稿/成绩保留、名单增减与条件校验、审计前后原因/身份/时间、历史授权反复跨周保持/原归属标准、空名单、角色/CSRF/实时撤权、输入/版本冲突、审计故障整体回滚、名单/状态与正式提交并发、启停引用保护。
+- 故障注入只在测试库operation_log临时CHECK拒绝四类治理动作，确认名单、状态、版本、草稿与新周准备整体回滚，finally移除；无测试辅助表。旧会话测试缓存撤权前CSRF直接重放，避免测试帮助函数先取CSRF的401被误认成产品失败。
+- 浏览器通过真实页面覆盖关闭/停检/恢复/重开、移出后的草稿只读、补入/移出后的无应检、断网保留原因、版本冲突核对、历史切换及授权补录。跨周样本只在固定apartment_test调整日期，全部治理与发布走真实API或页面；后端受控Clock另外验证真实周界线，不提供改时业务接口。
+- 红绿：状态与名单缺API403→通过；跨周未关闭OPEN→关闭且授权例外保留；管理页面缺按钮→通过。独立Spec发现旧候选误提交、旧批次日志迟到覆盖，两条新增测试先在4157698失败（task10-review-red.log），再于52a8a9f修正并通过28项相关回归；Standards0违例，Spec原2项P2全部复核关闭，详见[审查](../.codex-work/logs/20261116-task10-review.md)。
+- [界面截图](../output/playwright/)task10-removed-draft/changes/roster/history，共8张。实际查看1366移出草稿、1920历史补录；沿第一版灰蓝新拟态，长弹窗可滚动，操作按钮实际可达。
+- 演示先对照09最终快照，原地V12→V13后通过API新增6条模拟治理记录；最终OPEN、3应检/2已检/1本人草稿。重复普通seed和实际Java进程停止/重启后，task10-demo-initial.json与task10-demo-final.json完整相同，原方案/评分/住宿/工单/图片摘要不变。证据.runtime/task10-demo-server.log、task10-demo-restart.log、task10-demo-before.json及上述快照。
+
+API与浏览器顺序使用apartment_test，演示apartment_demo未清空；测试服务退出，演示5174/8081/3308保留。本票完成US25/26及共享AC的分工；11/12统计排除停检、14关闭后更正、15完整审计及17性能仍待后续。未验证其他操作系统、浏览器或公网部署。

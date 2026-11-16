@@ -142,3 +142,11 @@
 - [V12](../../backend/src/main/resources/db/migration/V12__personal_score_drafts.sql)、[后端](../../backend/src/main/java/com/example/apartment/modules/hygiene/)、[页面](../../frontend/src/features/hygiene/InspectionsPage.vue)、[API测试](../../backend/src/test/java/com/example/apartment/hygiene/BatchHttpTest.java)、[浏览器测试](../../frontend/e2e/batches.spec.ts)。
 - [测试](../../docs/testing.md)：67后端/76全量浏览器、空库V1–V12、演示草稿和原业务重启持久化；[演示](../../docs/demo.md)、[API](../../docs/api.md)、[数据库](../../docs/database.md)、[运行](../../docs/local-run.md)已更新。
 - [截图](../../output/playwright/)task09-draft/complete/submit-failure/conflict各两尺寸共8张。复用已有项目工具，未安装/登记全局资产；一次性清库/演示核验只存.runtime，不作通用初始化入口。下一项10接续真实批次治理。
+
+
+## 任务10批次治理与历史补录（2026-11-16）
+
+- [任务票](../../.scratch/dorm-management/issues/10-batch-governance.md)、[归档卡](../task-cards/completed/20261116-task10-implement.md)、[实施](../logs/20261116-task10-implement.md)、[双轴审查](../logs/20261116-task10-review.md)。
+- [V13迁移](../../backend/src/main/resources/db/migration/V13__batch_governance.sql)、[卫生后端](../../backend/src/main/java/com/example/apartment/modules/hygiene/)、[治理组件](../../frontend/src/features/hygiene/BatchGovernance.vue)、[公开API测试](../../backend/src/test/java/com/example/apartment/hygiene/BatchGovernanceHttpTest.java)、[浏览器测试](../../frontend/e2e/batches.spec.ts)。
+- [测试证据](../../docs/testing.md)：75后端、82全量双尺寸浏览器与修正后28卫生回归，空库迁移、原地升级及重启持久化通过；[演示](../../docs/demo.md)、[接口](../../docs/api.md)、[数据库](../../docs/database.md)、[运行](../../docs/local-run.md)同步更新。
+- [截图](../../output/playwright/)task10-removed-draft/changes/roster/history，两尺寸8张。运行产物与一次性.runtime校验脚本不入Git、不注册为全局可用资产。下一项11未启动。

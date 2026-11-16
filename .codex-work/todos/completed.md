@@ -100,3 +100,9 @@
 
 - 完成本人服务端草稿、重登恢复、多窗口版本保护、正式提交原子清理及跨楼栋连续评分；67后端/76全量浏览器、构建、空库V1–V12、演示草稿重启持久化通过。独立双轴无确定缺陷；实现d51d76f在本地main，未推送。
 - [任务票](../../.scratch/dorm-management/issues/09-continuous-scoring-drafts.md)、[归档卡](../task-cards/completed/20261116-task09-implement.md)、[实施](../logs/20261116-task09-implement.md)、[审查](../logs/20261116-task09-review.md)。下一项10未启动；总索引跨目录同步仍在current。
+
+
+## 2026-11-16 · 任务10批次治理与历史补录
+
+- 带原因的名单补入/移出、关闭/停检/恢复/重开、个人草稿只读恢复、历史授权跨周保留及变更追溯完成。75后端、82全量浏览器及修正后28卫生回归、构建、空库V1–V13和演示重启持久化通过。
+- [任务票](../../.scratch/dorm-management/issues/10-batch-governance.md)、[归档卡](../task-cards/completed/20261116-task10-implement.md)、[实施](../logs/20261116-task10-implement.md)、[审查](../logs/20261116-task10-review.md)。Standards0违例；Spec两项P2已修复复核。实现4157698、修正52a8a9f本地提交未推送。下一项11；总索引同步保留current。
