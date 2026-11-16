@@ -166,3 +166,11 @@
 - [统计查询](../../backend/src/main/java/com/example/apartment/modules/hygiene/StatisticsMapper.java)、[管理服务](../../backend/src/main/java/com/example/apartment/modules/hygiene/StatisticsService.java)、[共用明细](../../backend/src/main/java/com/example/apartment/modules/hygiene/ResultDetailsQuery.java)、[实际页面](../../frontend/src/features/hygiene/StatisticsPage.vue)、[API测试](../../backend/src/test/java/com/example/apartment/hygiene/ManagementStatisticsHttpTest.java)、[浏览器测试](../../frontend/e2e/statistics.spec.ts)。
 - [测试](../../docs/testing.md)：87后端/104全量双尺寸Chrome、构建、原演示数据与图片摘要重启保留；[API](../../docs/api.md)、[数据库](../../docs/database.md)、[演示](../../docs/demo.md)、[运行](../../docs/local-run.md)同步更新。
 - [截图](../../output/playwright/)task12-building/room/empty各两尺寸共6张。复用既有项目工具、学生图表与历史明细，不新增依赖/迁移；.runtime一次性核验不登记全局资产。下一项13未启动。
+
+
+## 任务13低分整改闭环（2026-11-16）
+
+- [任务票](../../.scratch/dorm-management/issues/13-rectification.md)、[归档卡](../task-cards/completed/20261116-task13-implement.md)、[实施](../logs/20261116-task13-implement.md)、[独立审查](../logs/20261116-task13-review.md)。
+- [整改服务](../../backend/src/main/java/com/example/apartment/modules/hygiene/RectificationService.java)、[查询与写入](../../backend/src/main/java/com/example/apartment/modules/hygiene/RectificationMapper.java)、[V14迁移](../../backend/src/main/resources/db/migration/V14__rectification_workflow.sql)、[管理页面](../../frontend/src/features/hygiene/RectificationsPage.vue)、[API测试](../../backend/src/test/java/com/example/apartment/hygiene/RectificationHttpTest.java)、[浏览器测试](../../frontend/e2e/rectifications.spec.ts)。
+- [测试](../../docs/testing.md)：94后端/114全量双尺寸Chrome及构建，空库迁移/演示增量迁移与数据保留；[API](../../docs/api.md)、[数据库](../../docs/database.md)、[演示](../../docs/demo.md)、[运行](../../docs/local-run.md)已更新。
+- [截图](../../output/playwright/)task13-closed/follow-up/list各两尺寸6张，task13-demo-list/detail共2张。复用既有锁/审计/版本/引用守卫及项目工具，无新依赖；.runtime仅本轮证据，不登记全局资产。下一项14。
