@@ -94,3 +94,9 @@
 
 - 完成当前ISO周显式准备、名单/方案快照、宿管正式录分、精确计算、并发去重、事务审计、进度及未完应检停用保护；61后端/66全量浏览器、构建、空库V1–V11、演示升级与重启持久化通过，双轴各0发现。实现b7fcc8b在本地main，未推送。
 - [任务票](../../.scratch/dorm-management/issues/08-weekly-first-score.md)、[归档卡](../task-cards/completed/20261116-task08-implement.md)、[实施](../logs/20261116-task08-implement.md)、[审查](../logs/20261116-task08-review.md)。下一项09未启动；总索引同步沿用current待办。
+
+
+## 2026-11-16 · 任务09连续评分与个人草稿
+
+- 完成本人服务端草稿、重登恢复、多窗口版本保护、正式提交原子清理及跨楼栋连续评分；67后端/76全量浏览器、构建、空库V1–V12、演示草稿重启持久化通过。独立双轴无确定缺陷；实现d51d76f在本地main，未推送。
+- [任务票](../../.scratch/dorm-management/issues/09-continuous-scoring-drafts.md)、[归档卡](../task-cards/completed/20261116-task09-implement.md)、[实施](../logs/20261116-task09-implement.md)、[审查](../logs/20261116-task09-review.md)。下一项10未启动；总索引跨目录同步仍在current。

@@ -134,3 +134,11 @@
 - [V10](../../backend/src/main/resources/db/migration/V10__weekly_inspections.sql)、[V11](../../backend/src/main/resources/db/migration/V11__formal_scores.sql)、[后端](../../backend/src/main/java/com/example/apartment/modules/hygiene/)、[页面](../../frontend/src/features/hygiene/InspectionsPage.vue)、[HTTP测试](../../backend/src/test/java/com/example/apartment/hygiene/BatchHttpTest.java)、[浏览器测试](../../frontend/e2e/batches.spec.ts)。
 - [测试结果](../../docs/testing.md)：61后端/66全量浏览器、空库V1–V11、演示升级与重启持久化；[演示](../../docs/demo.md)、[API](../../docs/api.md)、[数据库](../../docs/database.md)、[运行](../../docs/local-run.md)已更新。
 - [截图](../../output/playwright/)task08-score/progress/network/conflict/empty/list各两尺寸共12张，运行产物不入Git。复用已有脚本/测试/业务锁，无新全局资产；.runtime一次性验证不登记为跨项目工具。下一项09未启动。
+
+
+## 任务09连续评分与个人草稿（2026-11-16）
+
+- [任务票](../../.scratch/dorm-management/issues/09-continuous-scoring-drafts.md)、[归档卡](../task-cards/completed/20261116-task09-implement.md)、[实施](../logs/20261116-task09-implement.md)、[独立审查](../logs/20261116-task09-review.md)。
+- [V12](../../backend/src/main/resources/db/migration/V12__personal_score_drafts.sql)、[后端](../../backend/src/main/java/com/example/apartment/modules/hygiene/)、[页面](../../frontend/src/features/hygiene/InspectionsPage.vue)、[API测试](../../backend/src/test/java/com/example/apartment/hygiene/BatchHttpTest.java)、[浏览器测试](../../frontend/e2e/batches.spec.ts)。
+- [测试](../../docs/testing.md)：67后端/76全量浏览器、空库V1–V12、演示草稿和原业务重启持久化；[演示](../../docs/demo.md)、[API](../../docs/api.md)、[数据库](../../docs/database.md)、[运行](../../docs/local-run.md)已更新。
+- [截图](../../output/playwright/)task09-draft/complete/submit-failure/conflict各两尺寸共8张。复用已有项目工具，未安装/登记全局资产；一次性清库/演示核验只存.runtime，不作通用初始化入口。下一项10接续真实批次治理。
