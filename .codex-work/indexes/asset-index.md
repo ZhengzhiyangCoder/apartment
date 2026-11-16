@@ -192,3 +192,11 @@
 - [审计查询](../../backend/src/main/java/com/example/apartment/support/audit/AuditQuery.java)、[审计页面](../../frontend/src/features/audit/AuditPage.vue)、[HTTP测试](../../backend/src/test/java/com/example/apartment/audit/AuditHttpTest.java)、[Chrome测试](../../frontend/e2e/audit.spec.ts)。
 - [测试](../../docs/testing.md)：106后端/142全量双尺寸Chrome、18项专项及构建，原V1–V16不变、演示重启前后业务/图片保留；[接口](../../docs/api.md)、[数据库](../../docs/database.md)、[演示](../../docs/demo.md)、[运行](../../docs/local-run.md)已同步。
 - [截图](../../output/playwright/)task15-details/score-source/own两尺寸及demo-list/correction，共8张。复用现有工具/公开接口/隔离时间夹具，无新依赖；一次性.runtime脚本不登记全局资产。下一项16。
+
+
+## 任务16四角色工作台（2026-11-16）
+
+- [任务票](../../.scratch/dorm-management/issues/16-role-dashboards.md)、[归档卡](../task-cards/completed/20261116-task16-implement.md)、[实施](../logs/20261116-task16-implement.md)、[独立审查](../logs/20261116-task16-review.md)。
+- [只读聚合服务](../../backend/src/main/java/com/example/apartment/modules/dashboard/DashboardService.java)、[工作台页面](../../frontend/src/features/dashboard/DashboardPage.vue)、[HTTP测试](../../backend/src/test/java/com/example/apartment/dashboard/DashboardHttpTest.java)、[Chrome测试](../../frontend/e2e/dashboard.spec.ts)。
+- [最终测试](../../docs/testing.md#任务16最终验证)：110后端/156全量两尺寸Chrome、14项专项及构建，演示普通重启前后业务/图片完整保留；[API](../../docs/api.md)、[数据库](../../docs/database.md)、[演示](../../docs/demo.md)、[运行](../../docs/local-run.md)已更新。
+- [截图](../../output/playwright/)task16-empty四角色各两尺寸、admin/manager/student/maintainer/error各两尺寸及demo四角色。复用原查询/测试与工具，无新依赖/迁移；.runtime一次性只读核验不登记全局资产。下一项17。

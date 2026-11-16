@@ -1,6 +1,6 @@
-# 测试与验收记录 — 任务 01–13
+# 测试与验收记录 — 任务 01–16
 
-最新日期：2026-11-16（Asia/Shanghai）。任务01–13验证完成；本页按阶段保留历史证据，最新结果见任务13。后续业务及整套系统验收尚未完成。
+最新日期：2026-11-16（Asia/Shanghai）。任务01–16验证完成；本页按阶段保留历史证据，最新结果见任务16。规模性能及整套系统交付验收尚未完成。
 
 ## 边界与隔离
 
@@ -258,3 +258,17 @@ API与浏览器顺序使用apartment_test，演示apartment_demo未清空；测�
 - [截图](../output/playwright/)task15-details/score-source/own各两尺寸，加demo-list/correction共8张；无页面横向溢出。最终demo/test各16项成功迁移、临时test_对象0，测试5175/8082退出，正常5174/8081/3308保留。
 
 本票US42及AC19/21/22/23分工完成；16工作台、17规模性能、18整体交付尚未完成。未扩大平台或部署结论。
+
+## 任务16最终验证
+
+- `./scripts/backend.sh -B verify`：**110项**公开HTTP/真实MySQL全量通过（原106+工作台4），JAR构建成功；`.runtime/task16-backend-final.log`。
+- `npm --prefix frontend run build`：vue-tsc/Vite通过；`.runtime/task16-frontend-final.log`。无新依赖、V1–V16不变。
+- `npm --prefix frontend run test:e2e -- dashboard.spec.ts`：**14项**双尺寸实际Chrome专项通过（7场景×1366×768/1920×1080）；`.runtime/task16-review-green.log`。最终`npm --prefix frontend run test:e2e`：**156项全量通过**（原142+工作台14），`.runtime/task16-browser-final.log`，专项不重复累计。
+- HTTP覆盖未登录/四角色投影；管理只读刷新不准备批次；无应检完成率null；7条工单total与前5项摘要；学生调寝/退宿后的成绩范围及本人旧工单；成绩更正；转派/开始/完成后的维修队列；伪造role/room/owner/assignee不扩大范围；角色变更与禁用撤销会话。
+- Chrome覆盖四角色空态和实际入口、未检筛选→正式评分→检查进度/整改/统计、成绩更正与调寝/退宿、维修真实开始/完成、网络失败清空旧结果并重试、角色撤销、迟到业务响应与SPA退出重登后迟到身份响应。
+- 接口各切片真实403红测→绿测；页面内容缺失红测→空态绿测。真实会话撤销曾出现空白旧URL，已修正；独立Spec另发现迟到身份覆盖P2，真实SPA红测（task16-review-auth-red-spa.log）→修正后14项绿测，最终Standards/Spec剩余均0。旧测试按钮定位失误、整页导航取消请求的测试初稿及被中断运行不计通过。
+- 演示8081普通重启前后与任务15业务/统计/草稿/更正/整改/图片hash一致；四角色5174真实Chrome工作台与领域工单查询一致，未重跑seed或补造业务。`.runtime/task16-demo-{before,after}.json`、`task16-demo-ui.json`；截图`output/playwright/task16-*`。
+
+本票沿已批准公开HTTP、真实隔离apartment_test与实际Chrome边界；后端与浏览器顺序执行。17规模性能、18整套交付尚未验收，其他操作系统/浏览器/公网部署未验证。
+
+- 最终只读核验：demo/test各16条成功迁移，临时test_对象0，演示审计50条不变；测试5175/8082已退出，正常5174/8081/3308保留。`.runtime/task16-final-checks.json`。任务16六条准则完成，17/18待开始。
