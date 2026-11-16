@@ -174,3 +174,11 @@
 - [整改服务](../../backend/src/main/java/com/example/apartment/modules/hygiene/RectificationService.java)、[查询与写入](../../backend/src/main/java/com/example/apartment/modules/hygiene/RectificationMapper.java)、[V14迁移](../../backend/src/main/resources/db/migration/V14__rectification_workflow.sql)、[管理页面](../../frontend/src/features/hygiene/RectificationsPage.vue)、[API测试](../../backend/src/test/java/com/example/apartment/hygiene/RectificationHttpTest.java)、[浏览器测试](../../frontend/e2e/rectifications.spec.ts)。
 - [测试](../../docs/testing.md)：94后端/114全量双尺寸Chrome及构建，空库迁移/演示增量迁移与数据保留；[API](../../docs/api.md)、[数据库](../../docs/database.md)、[演示](../../docs/demo.md)、[运行](../../docs/local-run.md)已更新。
 - [截图](../../output/playwright/)task13-closed/follow-up/list各两尺寸6张，task13-demo-list/detail共2张。复用既有锁/审计/版本/引用守卫及项目工具，无新依赖；.runtime仅本轮证据，不登记全局资产。下一项14。
+
+
+## 任务14成绩更正与联动（2026-11-16）
+
+- [任务票](../../.scratch/dorm-management/issues/14-score-corrections.md)、[归档卡](../task-cards/completed/20261116-task14-implement.md)、[实施](../logs/20261116-task14-implement.md)、[独立审查](../logs/20261116-task14-review.md)。
+- [更正服务](../../backend/src/main/java/com/example/apartment/modules/hygiene/CorrectionService.java)、[共用计分](../../backend/src/main/java/com/example/apartment/modules/hygiene/ScoreCalculation.java)、[V15](../../backend/src/main/resources/db/migration/V15__score_corrections.sql)、[V16](../../backend/src/main/resources/db/migration/V16__rectification_correction_trace.sql)、[更正组件](../../frontend/src/features/hygiene/ScoreCorrections.vue)、[API测试](../../backend/src/test/java/com/example/apartment/hygiene/ScoreCorrectionHttpTest.java)、[浏览器测试](../../frontend/e2e/corrections.spec.ts)。
+- [测试](../../docs/testing.md)：101后端/124全量双尺寸Chrome及构建，空库/增量迁移/原数据保留、普通seed与重启通过；[API](../../docs/api.md)、[数据库](../../docs/database.md)、[演示](../../docs/demo.md)、[运行](../../docs/local-run.md)同步。
+- [截图](../../output/playwright/)task14-history/linked/conflict两尺寸及demo-history/rectification共8张。复用原项目工具/锁/审计/统计，无新依赖；一次性.runtime核验不登记全局资产。下一项15。

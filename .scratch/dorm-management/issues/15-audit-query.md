@@ -42,3 +42,6 @@ Type: task
 
 
 - 2026-11-11：用户认可拆分和依赖，要求生成正式任务票并从 01 开始 implement；本票已正式发布，验收范围与依赖保持批准内容。
+
+
+- 2026-11-16：14已完成，06/14前置均满足。新增SCORE_CORRECTED（before为完整Score，after含score/reason）和RECTIFICATION_CORRECTED（达标关联事件前后），更正完整明细仍归hygiene_score_correction，管理GET已分页；不复制历史事实。14保留原提交时间并独立记录实际更正时间/操作者，成绩同id版本并发保护；原触发快照/跟进保留。15仍需按本票独立实现全局/本人检索权限、敏感字段最小化与来源定位，此为交接，本票未启动。

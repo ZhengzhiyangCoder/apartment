@@ -125,3 +125,9 @@
 
 - 7条准则完成，固定低分触发、并发去重、跟进/核实/关闭、事务与停用保护。94后端/114全量双尺寸Chrome及构建、空库V1–V14、演示升级/持久化通过。独立审查补充P2已修复并复核，无剩余发现。
 - 实现f1c9205、修正5e338b3本地提交未推送。[归档卡](../task-cards/completed/20261116-task13-implement.md)、[实施](../logs/20261116-task13-implement.md)、[审查](../logs/20261116-task13-review.md)。current仅保留14及总索引同步。
+
+
+## 2026-11-16 任务14 成绩更正与整改联动
+
+- 七条准则闭环；101后端/124全量双尺寸Chrome、构建、V1–V16空库及演示原地迁移/普通seed/真实重启持久化通过。
+- 独立Standards0，Spec唯一P2已红绿修正并独立复核关闭。见[归档卡](../task-cards/completed/20261116-task14-implement.md)、[实施](../logs/20261116-task14-implement.md)、[审查](../logs/20261116-task14-review.md)。下一项15未启动。

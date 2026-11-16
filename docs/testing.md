@@ -229,3 +229,18 @@ API与浏览器顺序使用apartment_test，演示apartment_demo未清空；测�
 - [截图](../output/playwright/)task13-closed/follow-up/list各两尺寸，另task13-demo-list/detail；共8张，已检查。测试5175/8082退出，演示5174/8081/3308保留。
 
 任务13的US39/40及AC20/22/23分工已闭环；14成绩更正、17规模性能和18整体交付尚未完成。没有修改批准Spec、工程结构或原型，没有扩大其他OS/浏览器或公网部署结论。
+
+
+## 任务14最终验证
+
+- `./scripts/backend.sh -B verify`：**101项**公开HTTP/真实MySQL全量通过（原94+更正7），JAR构建通过；.runtime/task14-backend-final.log。固定apartment_test空库完整应用V1–V16，原V1–V14不改。
+- `npm --prefix frontend run build`：vue-tsc/Vite通过，.runtime/task14-frontend-final.log；无新依赖。
+- `npm --prefix frontend run test:e2e`：**124项**全量真实Chrome通过（原114+5场景×2），1366×768、1920×1080，.runtime/task14-browser-final.log。API与浏览器顺序执行，专项10项不重复计数。
+- 7项API覆盖：关闭批次同id、原方案89.80计算和完整前后值；高→低创建、低→低关联去重、达标保留跟进和人工核实、新低分可另起事件；角色/CSRF/撤销/输入与分页；不同管理员同版本并发一200/一409；切换新方案仍按原99/1权重与60阈值；维度/更正/触发/日志/审计故障一致回滚；周月统计/排行/趋势/维度实时一致，停检更正仍排除后恢复。
+- 固定统计：寝室80/100原月90与同楼90并列第1；原80改60后月80、第2，楼栋85（寝室等权），维度样本60/90/100均83.33；停检原周后仅100有效，更正原周40仍排除；恢复后本寝室月70、楼栋80。更正时间不改变原归属或原提交时间。
+- 5项浏览器覆盖：关闭批次更正/前后历史/整改保留并人工关闭；网络/并发冲突保留分值及原因、显式核对新版本；历史错误重试/11条分页/离页迟到响应；实际学生与管理页面当前值、停检及越权；保存70后迟到80列表查询不能覆盖。
+- 红绿证据task14-red-correction/green-correction、red-rectification/green-rectification、red-browser/green-browser，以及独立审查task14-review-red/green。测试初稿的过期csrf助手、范围/多status/标题定位及延迟路由等待已修正，不放宽业务规则。[双轴审查](../.codex-work/logs/20261116-task14-review.md)Standards0，Spec唯一P2已修复复核，剩余0。
+- 演示升级前后业务/图片摘要一致；A103原50分在同id留痕更正55、85，原触发50/阈值65及跟进保留且仍OPEN。A10180/B20190、A102草稿、原住宿/维修/图片不变；检查仍3/4=75%，A楼82.50/B楼90，student仍90/1次/第1。普通seed和真实重启后完整快照一致，实际5174Chrome验证通过。自动审批曾担心seed覆盖数据，经具体脚本证据核查后重新获准，最终无阻塞。
+- [截图](../output/playwright/)task14-history/linked/conflict各两尺寸，加demo-history/rectification，共8张；实际控件可达，无页面横向溢出。最终demo/test各16个成功迁移，test_临时对象0，5175/8082退出，正常5174/8081/3308保留。
+
+本票US33/41与AC13/19/21/22/23分工已闭环；15全局审计、17规模性能、18整体交付尚未完成。批准Spec/工程结构/原型/依赖未变，未扩大平台或部署结论。
