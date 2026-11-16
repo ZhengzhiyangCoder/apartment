@@ -754,3 +754,7 @@ button {
 .repair-timeline span { display:block; color:var(--muted); font-size:12px; margin-top:4px }
 .repair-timeline p { margin:6px 0 0; white-space:pre-wrap }
 .repair-cancel { padding:20px 0; border-top:1px solid #cfd8e1 }
+
+.repair-responsibility { margin: 18px 0; padding: 14px 18px; border-radius: 14px; box-shadow: var(--pressed); }
+.repair-responsibility p { margin: 6px 0; }
+.repair-workflow { margin: 18px 0; }

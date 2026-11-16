@@ -7,6 +7,9 @@ import org.apache.ibatis.annotations.Update;
 
 @Mapper
 public interface AccountMapper {
+    @Select("SELECT id, username, display_name FROM sys_user WHERE role = 'MAINTAINER' AND enabled = true"
+            + " AND (#{q} = '' OR LOCATE(#{q}, username) > 0 OR LOCATE(#{q}, display_name) > 0) ORDER BY id DESC LIMIT #{size} OFFSET #{offset}")
+    java.util.List<AccountAccess.Maintainer> enabledMaintainers(String q, int size, long offset);
     @Select("SELECT id, username, password_hash, display_name, role, enabled, auth_version FROM sys_user WHERE username = #{username}")
     UserAccount findByUsername(String username);
 

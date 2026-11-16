@@ -27,6 +27,35 @@ public class RepairController {
     }
     @GetMapping("/{id}")
     public Detail detail(@AuthenticationPrincipal AccountPrincipal actor, @PathVariable long id) { return service.detail(actor, id); }
+    @GetMapping("/maintainers")
+    public com.example.apartment.modules.identity.AccountAccess.MaintainerPage maintainers(@AuthenticationPrincipal AccountPrincipal actor,
+            @RequestParam(defaultValue = "") String q, @RequestParam(defaultValue = "1") int page, @RequestParam(defaultValue = "10") int size) {
+        return service.maintainers(actor, q, page, size);
+    }
+    public record Assign(@jakarta.validation.constraints.NotNull @jakarta.validation.constraints.Positive Long assigneeId,
+            @jakarta.validation.constraints.NotNull @jakarta.validation.constraints.PositiveOrZero Long version) {}
+    @PostMapping("/{id}/assign")
+    public Detail assign(@AuthenticationPrincipal AccountPrincipal actor, @PathVariable long id, @jakarta.validation.Valid @RequestBody Assign input) {
+        return service.assign(actor, id, input.assigneeId(), input.version());
+    }
+    public record Reassign(@jakarta.validation.constraints.NotNull @jakarta.validation.constraints.Positive Long assigneeId,
+            @jakarta.validation.constraints.NotNull @jakarta.validation.constraints.PositiveOrZero Long version,
+            @jakarta.validation.constraints.NotBlank @jakarta.validation.constraints.Size(max = 500) String reason) {}
+    public record Start(@jakarta.validation.constraints.NotNull @jakarta.validation.constraints.PositiveOrZero Long version) {}
+    public record Complete(@jakarta.validation.constraints.NotNull @jakarta.validation.constraints.PositiveOrZero Long version,
+            @jakarta.validation.constraints.NotBlank @jakarta.validation.constraints.Size(max = 500) String completionNote) {}
+    @PostMapping("/{id}/reassign")
+    public Detail reassign(@AuthenticationPrincipal AccountPrincipal actor, @PathVariable long id, @jakarta.validation.Valid @RequestBody Reassign input) {
+        return service.reassign(actor, id, input.assigneeId(), input.version(), input.reason());
+    }
+    @PostMapping("/{id}/start")
+    public Detail start(@AuthenticationPrincipal AccountPrincipal actor, @PathVariable long id, @jakarta.validation.Valid @RequestBody Start input) {
+        return service.start(actor, id, input.version());
+    }
+    @PostMapping("/{id}/complete")
+    public Detail complete(@AuthenticationPrincipal AccountPrincipal actor, @PathVariable long id, @jakarta.validation.Valid @RequestBody Complete input) {
+        return service.complete(actor, id, input.version(), input.completionNote());
+    }
     public record Cancel(@jakarta.validation.constraints.NotBlank @jakarta.validation.constraints.Size(max = 500) String reason) {}
     @PostMapping("/{id}/cancel")
     public Detail cancel(@AuthenticationPrincipal AccountPrincipal actor, @PathVariable long id, @jakarta.validation.Valid @RequestBody Cancel input) {

@@ -13,6 +13,247 @@ import org.junit.jupiter.api.Test;
 import static org.assertj.core.api.Assertions.assertThat;
 
 class RepairHttpTest extends HttpIntegrationTest {
+    @Test
+    void workflowRejectsInvalidAccountsRolesInputsAndCsrfWithoutChangingOrder() throws Exception {
+        var admin = login("system_admin"); var manager = login("dorm_manager"); var student = login("student"); var worker = login("maintainer");
+        moveIn(admin); long workerId = admin.account("maintainer").path("id").asLong();
+        var order = json.readTree(upload(student, form()).body()); String path = "/api/repairs/" + order.path("id").asLong();
+        for (long invalid : List.of(999999L, admin.account("disabled").path("id").asLong(), studentAccount(admin).path("id").asLong())) {
+            assertThat(manager.postJson(path + "/assign", Map.of("assigneeId", invalid, "version", 0)).statusCode()).isEqualTo(409);
+        }
+        for (Object invalid : List.of(Map.of(), Map.of("assigneeId", workerId), Map.of("assigneeId", 0, "version", 0), Map.of("assigneeId", workerId, "version", -1), Map.of("assigneeId", workerId, "version", 0.5))) {
+            assertThat(manager.postJson(path + "/assign", invalid).statusCode()).isEqualTo(400);
+        }
+        assertThat(manager.send(path + "/assign", "POST", "application/json", "{\"assigneeId\":" + workerId + ",\"version\":0}", null).statusCode()).isEqualTo(403);
+        assertThat(new Browser().get("/api/repairs/maintainers").statusCode()).isEqualTo(401);
+        assertThat(worker.get("/api/repairs/maintainers").statusCode()).isEqualTo(403);
+        for (String query : List.of("page=0", "size=101", "q=" + "x".repeat(65))) assertThat(manager.get("/api/repairs/maintainers?" + query).statusCode()).isEqualTo(400);
+        assertThat(json.readTree(manager.get("/api/repairs/maintainers?q=absent").body()).path("total").asInt()).isZero();
+        assertThat(json.readTree(manager.get(path).body())).isEqualTo(order);
+        assertThat(manager.postJson(path + "/assign", Map.of("assigneeId", workerId, "version", 0)).statusCode()).isEqualTo(200);
+        for (var actor : List.of(student, manager, admin)) {
+            assertThat(actor.postJson(path + "/start", Map.of("version", 1)).statusCode()).isEqualTo(403);
+            assertThat(actor.postJson(path + "/complete", Map.of("version", 1, "completionNote", "越权完成")).statusCode()).isEqualTo(403);
+        }
+        assertThat(manager.postJson(path + "/reassign", Map.of("assigneeId", workerId, "version", 1, "reason", "相同负责人")).statusCode()).isEqualTo(409);
+        assertThat(manager.postJson(path + "/reassign", Map.of("assigneeId", workerId, "version", 1, "reason", " ")).statusCode()).isEqualTo(400);
+        assertThat(manager.postJson(path + "/reassign", Map.of("assigneeId", workerId, "version", 1, "reason", "字".repeat(501))).statusCode()).isEqualTo(400);
+        assertThat(worker.postJson(path + "/start", Map.of()).statusCode()).isEqualTo(400);
+        assertThat(worker.postJson(path + "/complete", Map.of("version", 1, "completionNote", "字".repeat(501))).statusCode()).isEqualTo(400);
+        assertThat(worker.postJson(path + "/start", Map.of("version", 1)).statusCode()).isEqualTo(200);
+        assertThat(admin.postJson("/api/identity/accounts/" + workerId + "/enabled", Map.of("version", 0, "enabled", false)).statusCode()).isEqualTo(409);
+    }
+
+    @Test
+    void competingStartCancelAndReassignmentHaveOneConsistentWinner() throws Exception {
+        var admin = login("system_admin"); var student = login("student"); var worker = login("maintainer"); moveIn(admin);
+        long workerId = admin.account("maintainer").path("id").asLong();
+        long otherId = create(admin, "identity/accounts", Map.of("username", "race_worker", "displayName", "竞争维修人员", "role", "MAINTAINER", "password", PASSWORD)).path("id").asLong();
+        student.csrf(); worker.csrf(); admin.csrf();
+        for (String competitor : List.of("cancel", "reassign", "start")) {
+            var order = json.readTree(upload(student, form(), png()).body()); String path = "/api/repairs/" + order.path("id").asLong();
+            assertThat(admin.postJson(path + "/assign", Map.of("assigneeId", workerId, "version", 0)).statusCode()).isEqualTo(200);
+            var gate = new java.util.concurrent.CountDownLatch(1); var pool = java.util.concurrent.Executors.newFixedThreadPool(2);
+            try {
+                var start = pool.submit(() -> { gate.await(); return worker.postJson(path + "/start", Map.of("version", 1)); });
+                var competing = pool.submit(() -> { gate.await(); return switch (competitor) {
+                    case "cancel" -> student.postJson(path + "/cancel", Map.of("reason", "并发取消"));
+                    case "reassign" -> admin.postJson(path + "/reassign", Map.of("assigneeId", otherId, "version", 1, "reason", "并发重分配"));
+                    default -> worker.postJson(path + "/start", Map.of("version", 1));
+                }; });
+                gate.countDown(); var a = start.get(); var b = competing.get();
+                assertThat(List.of(a.statusCode(), b.statusCode())).contains(200);
+                assertThat(a.statusCode() == 200 ? b.statusCode() : a.statusCode()).isIn(404, 409);
+                var after = json.readTree(admin.get(path).body());
+                assertThat(after.path("logs").size()).isEqualTo(3); assertThat(after.path("version").asLong()).isEqualTo(2);
+                assertThat(after.path("logs").get(2).path("toStatus")).isEqualTo(after.path("status"));
+                if (a.statusCode() == 200 || competitor.equals("start")) {
+                    assertThat(after.path("status").asText()).isEqualTo("IN_PROGRESS");
+                    assertThat(after.path("assigneeId").asLong()).isEqualTo(workerId);
+                } else if (competitor.equals("cancel")) assertThat(after.path("status").asText()).isEqualTo("CANCELLED");
+                else {
+                    assertThat(after.path("status").asText()).isEqualTo("PENDING");
+                    assertThat(after.path("assigneeId").asLong()).isEqualTo(otherId);
+                    assertThat(image(worker, order.path("images").get(0).path("url").asText()).statusCode()).isEqualTo(404);
+                }
+                assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM operation_log WHERE target_type='REPAIR' AND target_id=?", Long.class, order.path("id").asLong())).isEqualTo(3);
+            } finally { pool.shutdownNow(); }
+        }
+    }
+
+    @Test
+    void assignmentRacingAccountDisableOrRoleChangeCannotCreateAnUnusableAssignee() throws Exception {
+        var admin = login("system_admin"); var manager = login("dorm_manager"); var student = login("student"); moveIn(admin);
+        admin.csrf(); manager.csrf();
+        for (String mutation : List.of("enabled", "role")) {
+            var account = create(admin, "identity/accounts", Map.of("username", "race_" + mutation, "displayName", "模拟竞争账号", "role", "MAINTAINER", "password", PASSWORD));
+            long workerId = account.path("id").asLong();
+            var order = json.readTree(upload(student, form()).body()); String path = "/api/repairs/" + order.path("id").asLong();
+            var gate = new java.util.concurrent.CountDownLatch(1); var pool = java.util.concurrent.Executors.newFixedThreadPool(2);
+            try {
+                var assign = pool.submit(() -> { gate.await(); return manager.postJson(path + "/assign", Map.of("assigneeId", workerId, "version", 0)); });
+                var change = pool.submit(() -> { gate.await(); return admin.postJson("/api/identity/accounts/" + workerId + "/" + mutation,
+                        mutation.equals("enabled") ? Map.of("enabled", false, "version", 0) : Map.of("role", "DORM_MANAGER", "version", 0)); });
+                gate.countDown(); var a = assign.get(); var b = change.get();
+                assertThat(List.of(a.statusCode(), b.statusCode())).containsExactlyInAnyOrder(200, 409);
+                var after = json.readTree(manager.get(path).body()); var identity = admin.account("race_" + mutation);
+                if (a.statusCode() == 200) {
+                    assertThat(after.path("assigneeId").asLong()).isEqualTo(workerId);
+                    assertThat(identity.path("enabled").asBoolean()).isTrue(); assertThat(identity.path("role").asText()).isEqualTo("MAINTAINER");
+                } else assertThat(after).isEqualTo(order);
+            } finally { pool.shutdownNow(); }
+        }
+    }
+
+    @Test
+    void failedWorkflowLogsAndAuditsRollbackStateResponsibilityTimesAndResultThenRetry() throws Exception {
+        var admin = login("system_admin"); var student = login("student"); var worker = login("maintainer"); moveIn(admin);
+        long workerId = admin.account("maintainer").path("id").asLong();
+        long nextId = create(admin, "identity/accounts", Map.of("username", "rollback_worker", "displayName", "模拟回滚维修员", "role", "MAINTAINER", "password", PASSWORD)).path("id").asLong();
+        var next = login("rollback_worker");
+        var order = json.readTree(upload(student, form(), png()).body()); String path = "/api/repairs/" + order.path("id").asLong();
+        int version = 0;
+        for (String action : List.of("assign", "reassign", "start", "complete")) {
+            Browser actor = action.equals("assign") || action.equals("reassign") ? admin : next;
+            Object body = switch (action) {
+                case "assign" -> Map.of("assigneeId", workerId, "version", version);
+                case "reassign" -> Map.of("assigneeId", nextId, "version", version, "reason", "模拟回滚重分配");
+                case "start" -> Map.of("version", version);
+                default -> Map.of("version", version, "completionNote", "模拟回滚后完成");
+            };
+            var before = json.readTree(admin.get(path).body());
+            for (String table : List.of("repair_status_log", "operation_log")) {
+                long count = jdbc.queryForObject("SELECT COUNT(*) FROM " + table, Long.class);
+                String note = switch (action) { case "assign" -> "分配维修人员"; case "reassign" -> "模拟回滚重分配"; case "start" -> "开始维修"; default -> "模拟回滚后完成"; };
+                String auditAction = switch (action) { case "assign" -> "REPAIR_ASSIGNED"; case "reassign" -> "REPAIR_REASSIGNED"; case "start" -> "REPAIR_STARTED"; default -> "REPAIR_COMPLETED"; };
+                String predicate = table.equals("repair_status_log") ? "note <> '" + note + "'" : "action <> '" + auditAction + "'";
+                jdbc.execute("ALTER TABLE " + table + " ADD CONSTRAINT test_reject_workflow CHECK (" + predicate + ")");
+                try {
+                    var failed = actor.postJson(path + "/" + action, body);
+                    assertThat(failed.statusCode()).as(action + failed.body()).isEqualTo(500);
+                    assertThat(failed.body()).doesNotContain("SQL", "Exception", "test_reject");
+                    assertThat(json.readTree(admin.get(path).body())).isEqualTo(before);
+                    assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM " + table, Long.class)).isEqualTo(count);
+                } finally { jdbc.execute("ALTER TABLE " + table + " DROP CHECK test_reject_workflow"); }
+            }
+            assertThat(actor.postJson(path + "/" + action, body).statusCode()).isEqualTo(200); version++;
+        }
+        assertThat(worker.get(path).statusCode()).isEqualTo(404);
+        assertThat(json.readTree(student.get(path).body()).path("completionNote").asText()).isEqualTo("模拟回滚后完成");
+        assertThat(admin.postJson("/api/identity/accounts/" + nextId + "/enabled", Map.of("enabled", false, "version", 0)).statusCode()).isEqualTo(200);
+        assertThat(image(next, order.path("images").get(0).path("url").asText()).statusCode()).isEqualTo(401);
+        assertThat(image(student, order.path("images").get(0).path("url").asText()).statusCode()).isEqualTo(200);
+    }
+    @Test
+    void pendingOrdersCanBeCancelledAndUnfinishedAssignmentsBlockDisableAndRoleChange() throws Exception {
+        var admin = login("system_admin"); var manager = login("dorm_manager"); var student = login("student");
+        var worker = login("maintainer"); moveIn(admin);
+        long workerId = admin.account("maintainer").path("id").asLong(); String accountPath = "/api/identity/accounts/" + workerId;
+        for (var cancelActor : List.of(student, manager, admin)) {
+            var order = json.readTree(upload(student, form(), png()).body()); String path = "/api/repairs/" + order.path("id").asLong();
+            assertThat(admin.postJson(path + "/assign", Map.of("assigneeId", workerId, "version", 0)).statusCode()).isEqualTo(200);
+            var disabled = admin.postJson(accountPath + "/enabled", Map.of("enabled", false, "version", 0));
+            assertThat(disabled.statusCode()).as(disabled.body()).isEqualTo(409);
+            assertThat(disabled.body()).contains("UNFINISHED_REPAIRS");
+            assertThat(admin.postJson(accountPath + "/role", Map.of("role", "DORM_MANAGER", "version", 0)).statusCode()).isEqualTo(409);
+            assertThat(worker.postJson(path + "/cancel", Map.of("reason", "维修人员不能取消")).statusCode()).isEqualTo(403);
+            assertThat(cancelActor.postJson(path + "/cancel", Map.of("reason", " ")).statusCode()).isEqualTo(400);
+            var cancelled = cancelActor.postJson(path + "/cancel", Map.of("reason", "模拟待处理取消"));
+            assertThat(cancelled.statusCode()).as(cancelled.body()).isEqualTo(200);
+            var result = json.readTree(cancelled.body());
+            assertThat(result.path("status").asText()).isEqualTo("CANCELLED");
+            assertThat(result.path("version").asLong()).isEqualTo(2);
+            assertThat(result.path("logs").get(2).path("assigneeId").asLong()).isEqualTo(workerId);
+            assertThat(worker.postJson(path + "/start", Map.of("version", 2)).statusCode()).isEqualTo(409);
+            assertThat(admin.postJson(path + "/reassign", Map.of("assigneeId", workerId, "version", 2, "reason", "终态重开")).statusCode()).isEqualTo(409);
+            assertThat(student.get(path).statusCode()).isEqualTo(200);
+        }
+        assertThat(admin.postJson(accountPath + "/enabled", Map.of("enabled", false, "version", 0)).statusCode()).isEqualTo(200);
+        assertThat(worker.get("/api/repairs").statusCode()).isEqualTo(401);
+        assertThat(json.readTree(manager.get("/api/repairs/maintainers").body()).path("total").asInt()).isZero();
+        assertThat(admin.postJson(accountPath + "/role", Map.of("role", "DORM_MANAGER", "version", 1)).statusCode()).isEqualTo(200);
+        assertThat(json.readTree(admin.get("/api/repairs").body()).path("total").asInt()).isEqualTo(3);
+    }
+    @Test
+    void reassignmentRevokesOldAccessAndOnlyAssigneeCanStartThenCompleteWithExplanation() throws Exception {
+        var admin = login("system_admin"); var manager = login("dorm_manager"); var student = login("student");
+        var first = login("maintainer"); moveIn(admin);
+        long firstId = admin.account("maintainer").path("id").asLong();
+        long secondId = create(admin, "identity/accounts", Map.of("username", "second_worker", "displayName", "模拟新维修员", "role", "MAINTAINER", "password", PASSWORD)).path("id").asLong();
+        var second = login("second_worker");
+        var order = json.readTree(upload(student, form(), png()).body()); String path = "/api/repairs/" + order.path("id").asLong();
+        String url = order.path("images").get(0).path("url").asText();
+        assertThat(manager.postJson(path + "/assign", Map.of("assigneeId", firstId, "version", 0)).statusCode()).isEqualTo(200);
+        assertThat(first.postJson(path + "/complete", Map.of("version", 1, "completionNote", "跳过处理")).statusCode()).isEqualTo(409);
+        var reassigned = manager.postJson(path + "/reassign", Map.of("assigneeId", secondId, "version", 1, "reason", "原负责人休假，交由新负责人处理"));
+        assertThat(reassigned.statusCode()).as(reassigned.body()).isEqualTo(200);
+        var changed = json.readTree(reassigned.body());
+        assertThat(changed.path("status").asText()).isEqualTo("PENDING");
+        assertThat(changed.path("logs").get(2).path("previousAssigneeId").asLong()).isEqualTo(firstId);
+        assertThat(changed.path("logs").get(2).path("assigneeId").asLong()).isEqualTo(secondId);
+        assertThat(first.get(path).statusCode()).isEqualTo(404);
+        assertThat(image(first, url).statusCode()).isEqualTo(404);
+        assertThat(json.readTree(first.get("/api/repairs").body()).path("total").asInt()).isZero();
+        assertThat(first.postJson(path + "/start", Map.of("version", 1)).statusCode()).isEqualTo(404);
+        assertThat(second.get(path).statusCode()).isEqualTo(200);
+        assertThat(image(second, url).statusCode()).isEqualTo(200);
+        assertThat(second.postJson(path + "/start", Map.of("version", 1)).statusCode()).isEqualTo(409);
+        var started = second.postJson(path + "/start", Map.of("version", 2));
+        assertThat(started.statusCode()).as(started.body()).isEqualTo(200);
+        assertThat(json.readTree(started.body()).path("startedAt").isNull()).isFalse();
+        assertThat(manager.postJson(path + "/reassign", Map.of("assigneeId", firstId, "version", 3, "reason", "处理中不可转派")).statusCode()).isEqualTo(409);
+        for (var actor : List.of(student, manager, admin)) assertThat(actor.postJson(path + "/cancel", Map.of("reason", "处理中不能取消")).statusCode()).isEqualTo(409);
+        assertThat(second.postJson(path + "/complete", Map.of("version", 3, "completionNote", " ")).statusCode()).isEqualTo(400);
+        var completed = second.postJson(path + "/complete", Map.of("version", 3, "completionNote", "更换水龙头密封圈，通水检查无渗漏"));
+        assertThat(completed.statusCode()).as(completed.body()).isEqualTo(200);
+        var result = json.readTree(student.get(path).body());
+        assertThat(result.path("status").asText()).isEqualTo("COMPLETED");
+        assertThat(result.path("completionNote").asText()).isEqualTo("更换水龙头密封圈，通水检查无渗漏");
+        assertThat(result.path("logs").size()).isEqualTo(5);
+        assertThat(result.path("logs").get(4).path("actorName").asText()).isEqualTo("模拟新维修员");
+        assertThat(result.path("completedAt").isNull()).isFalse();
+        assertThat(result.path("version").asLong()).isEqualTo(4);
+        assertThat(second.postJson(path + "/complete", Map.of("version", 4, "completionNote", "试图改写")).statusCode()).isEqualTo(409);
+        assertThat(second.postJson(path + "/start", Map.of("version", 4)).statusCode()).isEqualTo(409);
+        assertThat(manager.postJson(path + "/assign", Map.of("assigneeId", firstId, "version", 4)).statusCode()).isEqualTo(409);
+        assertThat(json.readTree(student.get(path).body())).isEqualTo(result);
+        var audit = jdbc.queryForList("SELECT action, actor_id, after_data FROM operation_log WHERE target_type='REPAIR' AND target_id=? ORDER BY id", order.path("id").asLong());
+        assertThat(audit).hasSize(5);
+        assertThat(audit.get(4).get("action")).isEqualTo("REPAIR_COMPLETED");
+        assertThat(((Number) audit.get(4).get("actor_id")).longValue()).isEqualTo(secondId);
+        assertThat(audit.get(4).get("after_data").toString()).contains("更换水龙头密封圈");
+    }
+    @Test
+    void managerAssignsEnabledMaintainerAndOnlyCurrentAssigneeCanReadOrderAndImages() throws Exception {
+        var admin = login("system_admin"); var manager = login("dorm_manager"); var student = login("student");
+        var maintainer = login("maintainer"); moveIn(admin);
+        var order = json.readTree(upload(student, form(), png()).body());
+        String path = "/api/repairs/" + order.path("id").asLong();
+        long worker = admin.account("maintainer").path("id").asLong();
+        var options = manager.get("/api/repairs/maintainers");
+        assertThat(options.statusCode()).as(options.body()).isEqualTo(200);
+        assertThat(json.readTree(options.body()).path("total").asInt()).isEqualTo(1);
+        assertThat(options.body()).doesNotContain("password", "authVersion");
+        var assigned = manager.postJson(path + "/assign", Map.of("assigneeId", worker, "version", 0));
+        assertThat(assigned.statusCode()).as(assigned.body()).isEqualTo(200);
+        var after = json.readTree(assigned.body());
+        assertThat(after.path("status").asText()).isEqualTo("PENDING");
+        assertThat(after.path("assigneeId").asLong()).isEqualTo(worker);
+        assertThat(after.path("assigneeName").asText()).isEqualTo("模拟MAINTAINER");
+        assertThat(after.path("assignedBy")).isEqualTo(admin.account("dorm_manager").path("id"));
+        assertThat(after.path("assignedAt").asText()).isNotBlank();
+        assertThat(after.path("version").asLong()).isEqualTo(1);
+        assertThat(after.path("logs").size()).isEqualTo(2);
+        assertThat(after.path("logs").get(1).path("assigneeId").asLong()).isEqualTo(worker);
+        assertThat(maintainer.get(path).statusCode()).isEqualTo(200);
+        assertThat(image(maintainer, after.path("images").get(0).path("url").asText()).statusCode()).isEqualTo(200);
+        assertThat(json.readTree(maintainer.get("/api/repairs?assigneeId=999999").body()).path("total").asInt()).isEqualTo(1);
+        var unassigned = json.readTree(upload(student, form()).body());
+        assertThat(maintainer.get("/api/repairs/" + unassigned.path("id").asLong()).statusCode()).isEqualTo(404);
+        assertThat(student.postJson(path + "/assign", Map.of("assigneeId", worker, "version", 1)).statusCode()).isEqualTo(403);
+        assertThat(student.get("/api/repairs/maintainers").statusCode()).isEqualTo(403);
+        assertThat(manager.postJson(path + "/assign", Map.of("assigneeId", worker, "version", 0)).statusCode()).isEqualTo(409);
+    }
     private Browser login(String name) throws Exception {
         var b = new Browser(); assertThat(b.login(name, PASSWORD).statusCode()).isEqualTo(200); return b;
     }
@@ -114,7 +355,7 @@ class RepairHttpTest extends HttpIntegrationTest {
         assertThat(json.readTree(admin.get("/api/repairs/" + id).body()).path("logs").size()).isEqualTo(2);
     }
     @Test
-    void historyAndImagesSurviveTransferAndCheckoutButOtherStudentsAndMaintainersCannotRead() throws Exception {
+    void historyAndImagesSurviveTransferAndCheckoutButOtherStudentsAndUnassignedMaintainersCannotRead() throws Exception {
         var admin = login("system_admin"); var student = login("student"); var manager = login("dorm_manager"); var maintainer = login("maintainer");
         create(admin, "identity/accounts", Map.of("username", "other_student", "displayName", "模拟乙", "role", "STUDENT", "password", PASSWORD));
         var other = login("other_student"); var r = moveIn(admin);
@@ -124,8 +365,8 @@ class RepairHttpTest extends HttpIntegrationTest {
         assertThat(image(other, url).statusCode()).isEqualTo(404);
         assertThat(other.postJson(oldPath + "/cancel", Map.of("reason", "越权取消")).statusCode()).isEqualTo(404);
         assertThat(json.readTree(other.get("/api/repairs?submittedBy=" + old.path("submittedBy").asLong()).body()).path("total").asInt()).isZero();
-        assertThat(maintainer.get(oldPath).statusCode()).isEqualTo(403);
-        assertThat(image(maintainer, url).statusCode()).isEqualTo(403);
+        assertThat(maintainer.get(oldPath).statusCode()).isEqualTo(404);
+        assertThat(image(maintainer, url).statusCode()).isEqualTo(404);
         assertThat(new Browser().get(oldPath).statusCode()).isEqualTo(401);
         assertThat(image(new Browser(), url).statusCode()).isEqualTo(401);
         assertThat(image(manager, url).statusCode()).isEqualTo(200);

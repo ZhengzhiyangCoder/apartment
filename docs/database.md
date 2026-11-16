@@ -1,6 +1,6 @@
-# 实际数据库 — 任务 01–05
+# 实际数据库 — 任务 01–06
 
-版本迁移是唯一结构执行来源：`backend/src/main/resources/db/migration/` 中 V1 身份表、V2 账号审计表与角色状态索引、V3 楼栋、V4 寝室床位、V5 学生资料、V6 住宿关系、V7 报修工单/图片/状态日志。当前不提前建立后续业务模块空表。原始 18 表设计为后续任务的建模输入，不是已经运行的数据库。
+版本迁移是唯一结构执行来源：`backend/src/main/resources/db/migration/` 中 V1 身份表、V2 账号审计表与角色状态索引、V3 楼栋、V4 寝室床位、V5 学生资料、V6 住宿关系、V7 报修工单/图片/状态日志、V8 派单责任与处理结果。当前不提前建立后续业务模块空表。原始 18 表设计为后续任务的建模输入，不是已经运行的数据库。
 
 ## sys_user
 
@@ -90,8 +90,19 @@ V6 为增量新增表，V1–V5 保持原字节；不混入演示数据。无自
 
 V7只新增表，V1–V6保持不变。没有级联删除或删除API；历史引用始终保留。撤销使用后续前向修正迁移，不自动删除已提交工单或清空演示库。
 
-AccountAccess.lockBusinessActor复用原管理员全局锁后核验最新身份，按角色允许学生提交及三类角色取消；住宿办理、资料启停、账号变更维持同一锁顺序。RepairReferences只依赖mapper，由已有ResidencyReferences边界调用，不与RepairService形成服务循环。05检查提交人及原住宿资料的未完工单；06增加分配维修人员的停用约束。
+AccountAccess.lockBusinessActor复用原管理员全局锁后核验最新身份，按角色允许学生提交及三类角色取消；住宿办理、资料启停、账号变更维持同一锁顺序。RepairReferences只依赖mapper，由已有ResidencyReferences边界调用，不与RepairService形成服务循环。05检查提交人及原住宿资料的未完工单；06已增加分配维修人员的停用与改换角色约束。
 
 本地文件先解码并重新编码，再在业务事务内写到私有目录；事务同步回调负责失败清理。只有已提交的工单关联可通过授权接口读取，不暴露文件路径。进程被强制终止可能留下无数据库关联的孤立文件，它们无法经接口访问；不要把此目录挂到静态Web服务。正常服务重启和seed不删除任何已关联图片，数据库与文件目录应一并保留。
 
 测试重置增加先删除repair_status_log/repair_image/repair_order，随后删除住宿与账号资料；仍仅允许apartment_test。演示、API测试和浏览器测试使用独立图片目录。WebP解码依赖锁定TwelveMonkeys imageio-webp 3.15.3，采用[官方ImageIO插件方式](https://github.com/haraldk/TwelveMonkeys)，构件见[Maven Central](https://central.sonatype.com/artifact/com.twelvemonkeys.imageio/imageio-webp/3.15.3)。
+
+
+## 维修责任与结果（任务06，V8）
+
+V8为新增字段/索引/外键的前向迁移，不改V1–V7，不删除或回填改写已有工单。repair_order新增可空assignee_id/name、assigned_by/name、assigned_at、started_at、completed_at、completion_note（最多500字），以及version BIGINT默认0。负责人和派单人关联sys_user，姓名取当时受控身份查询结果保留快照；idx_repair_assignee(assignee_id,status,id)用于本人任务检索。
+
+repair_status_log新增可空previous_assignee_id/name、assignee_id/name，人员ID均有外键。V7已有日志的新增字段为null，之后每次工作流变化保留前后责任人；同状态重分配也新增一条日志。处理结果同时保存于工单与完成日志，已结束记录没有编辑或删除接口。
+
+合法主链为PENDING_ASSIGNMENT→PENDING→IN_PROGRESS→COMPLETED；取消仅从前两态进入CANCELLED。共享事务锁与带version的条件更新防止旧命令覆盖责任人，账号启停/角色变化遵循相同锁序。日志或审计插入失败时，责任人、状态、时间、处理说明与版本全部回滚。
+
+回退不通过删除新列或倒退Flyway实现；若需修正，新增前向迁移并保留既有引用。测试清理仍按已确认的固定apartment_test白名单执行，演示库原地升级。全量/升级验证结果见[测试说明](testing.md)。

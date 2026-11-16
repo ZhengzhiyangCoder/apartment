@@ -24,7 +24,7 @@ export const router = createRouter({
       { path: 'accounts', component: AccountsPage, meta: { role: 'SYSTEM_ADMIN' } },
       { path: 'residencies', component: ResidencyPage, meta: { role: 'SYSTEM_ADMIN' } },
       { path: 'my-residency', component: MyResidencyPage, meta: { role: 'STUDENT' } },
-      { path: 'repairs', component: RepairsPage, meta: { roles: ['STUDENT', 'SYSTEM_ADMIN', 'DORM_MANAGER'] } },
+      { path: 'repairs', component: RepairsPage, meta: { roles: ['STUDENT', 'SYSTEM_ADMIN', 'DORM_MANAGER', 'MAINTAINER'] } },
       { path: 'housing', component: HousingPage, meta: { roles: ['SYSTEM_ADMIN', 'DORM_MANAGER'] } },
       { path: 'forbidden', component: AccessPage },
       { path: ':pathMatch(.*)*', component: AccessPage },

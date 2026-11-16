@@ -20,9 +20,12 @@ public class AccountAdministrationService {
     private final StudentProfileReferences studentProfiles;
     private final AccountAccess access;
     private final ResidencyReferences residencies;
+    private final com.example.apartment.modules.repair.RepairReferences repairs;
     public AccountAdministrationService(AccountAdministrationMapper management, AccountMapper accounts,
-            PasswordEncoder passwords, AuditWriter audit, StudentProfileReferences studentProfiles, AccountAccess access, ResidencyReferences residencies) {
+            PasswordEncoder passwords, AuditWriter audit, StudentProfileReferences studentProfiles, AccountAccess access, ResidencyReferences residencies,
+            com.example.apartment.modules.repair.RepairReferences repairs) {
         this.management = management; this.accounts = accounts; this.passwords = passwords; this.audit = audit; this.studentProfiles = studentProfiles; this.access = access; this.residencies = residencies;
+        this.repairs = repairs;
     }
 
     @Transactional(readOnly = true)
@@ -53,6 +56,7 @@ public class AccountAdministrationService {
     public AccountView changeRole(AccountPrincipal actor, long id, AccountRequests.ChangeRole input) {
         var before = lockTarget(actor, id, input.version());
         if (before.role() == input.role()) return AccountView.of(before);
+        if (before.role() == Role.MAINTAINER) repairs.requireAccountFinished(id);
         if (input.role() != Role.STUDENT) studentProfiles.requireUnlinked(id);
         if (input.role() != Role.SYSTEM_ADMIN) protectLastAdministrator(before);
         management.changeRole(id, input.role());

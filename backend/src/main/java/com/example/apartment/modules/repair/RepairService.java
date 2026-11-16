@@ -53,19 +53,73 @@ public class RepairService {
         requireReader(actor);
         if (q.length() > 64 || page < 1 || size < 1 || size > 100) throw new ApiException(HttpStatus.BAD_REQUEST, "INVALID_QUERY", "关键词最多 64 字，页码至少为 1，每页 1–100 条");
         Long owner = actor.role() == Role.STUDENT ? actor.id() : null;
-        return new Page(repairs.list(owner, q.strip(), status, size, (long) (page - 1) * size), repairs.count(owner, q.strip(), status), page, size);
+        Long assignee = actor.role() == Role.MAINTAINER ? actor.id() : null;
+        return new Page(repairs.list(owner, assignee, q.strip(), status, size, (long) (page - 1) * size), repairs.count(owner, assignee, q.strip(), status), page, size);
+    }
+    @Transactional(readOnly = true)
+    public AccountAccess.MaintainerPage maintainers(AccountPrincipal actor, String q, int page, int size) {
+        if (actor.role() != Role.SYSTEM_ADMIN && actor.role() != Role.DORM_MANAGER) {
+            throw new ApiException(HttpStatus.FORBIDDEN, "FORBIDDEN", "没有派单权限");
+        }
+        return accounts.enabledMaintainers(q, page, size);
+    }
+    @Transactional
+    public Detail assign(AccountPrincipal actor, long id, long assigneeId, long version) {
+        var author = accounts.lockBusinessActor(actor, Role.SYSTEM_ADMIN, Role.DORM_MANAGER);
+        var before = authorized(actor, id);
+        requireVersionAndStatus(before, version, Status.PENDING_ASSIGNMENT);
+        var worker = accounts.lockEnabledMaintainer(assigneeId);
+        if (repairs.assign(before, worker, author) != 1) throw changed();
+        return recordWorkflow(actor, author, before, "REPAIR_ASSIGNED", "分配维修人员");
+    }
+    @Transactional
+    public Detail reassign(AccountPrincipal actor, long id, long assigneeId, long version, String reason) {
+        var author = accounts.lockBusinessActor(actor, Role.SYSTEM_ADMIN, Role.DORM_MANAGER);
+        var before = authorized(actor, id);
+        requireVersionAndStatus(before, version, Status.PENDING);
+        if (Objects.equals(before.assigneeId(), assigneeId)) {
+            throw new ApiException(HttpStatus.CONFLICT, "SAME_ASSIGNEE", "请选择另一位维修人员");
+        }
+        var worker = accounts.lockEnabledMaintainer(assigneeId);
+        if (repairs.assign(before, worker, author) != 1) throw changed();
+        return recordWorkflow(actor, author, before, "REPAIR_REASSIGNED", reason.strip());
+    }
+    @Transactional
+    public Detail start(AccountPrincipal actor, long id, long version) {
+        var author = accounts.lockBusinessActor(actor, Role.MAINTAINER);
+        var before = authorized(actor, id);
+        requireVersionAndStatus(before, version, Status.PENDING);
+        if (repairs.start(id, version) != 1) throw changed();
+        return recordWorkflow(actor, author, before, "REPAIR_STARTED", "开始维修");
+    }
+    @Transactional
+    public Detail complete(AccountPrincipal actor, long id, long version, String completionNote) {
+        var author = accounts.lockBusinessActor(actor, Role.MAINTAINER);
+        var before = authorized(actor, id);
+        requireVersionAndStatus(before, version, Status.IN_PROGRESS);
+        if (repairs.complete(id, version, completionNote.strip()) != 1) throw changed();
+        return recordWorkflow(actor, author, before, "REPAIR_COMPLETED", completionNote.strip());
+    }
+    private Detail recordWorkflow(AccountPrincipal actor, AccountView author, Order before, String action, String note) {
+        repairs.workflowLog(before, repairs.find(before.id()), author, note);
+        var after = detail(actor, before.id());
+        audit.record(actor.id(), action, "REPAIR", before.id(), before, after);
+        return after;
+    }
+    private void requireVersionAndStatus(Order order, long version, Status status) {
+        if (order.version() != version || order.status() != status) throw changed();
+    }
+    private ApiException changed() {
+        return new ApiException(HttpStatus.CONFLICT, "REPAIR_CHANGED", "工单状态或负责人已变化，请刷新详情后重试");
     }
     @Transactional
     public Detail cancel(AccountPrincipal actor, long id, String reason) {
         var author = accounts.lockBusinessActor(actor, Role.STUDENT, Role.DORM_MANAGER, Role.SYSTEM_ADMIN);
         var before = authorized(actor, id);
-        if (before.status() != Status.PENDING_ASSIGNMENT || repairs.cancel(id) != 1) {
-            throw new ApiException(HttpStatus.CONFLICT, "REPAIR_CHANGED", "工单状态已变化，当前仅待分配工单可取消，请刷新后重试");
+        if ((before.status() != Status.PENDING_ASSIGNMENT && before.status() != Status.PENDING) || repairs.cancel(id) != 1) {
+            throw new ApiException(HttpStatus.CONFLICT, "REPAIR_CHANGED", "工单状态已变化，只有待分配或待处理工单可取消，请刷新后重试");
         }
-        repairs.log(id, before.status(), Status.CANCELLED, author.id(), author.displayName(), reason.strip());
-        var after = detail(actor, id);
-        audit.record(actor.id(), "REPAIR_CANCELLED", "REPAIR", id, before, after);
-        return after;
+        return recordWorkflow(actor, author, before, "REPAIR_CANCELLED", reason.strip());
     }
     @Transactional(readOnly = true)
     public Detail detail(AccountPrincipal actor, long id) {
@@ -82,11 +136,12 @@ public class RepairService {
     private Order authorized(AccountPrincipal actor, long id) {
         requireReader(actor);
         var order = repairs.find(id);
-        if (order == null || (actor.role() == Role.STUDENT && order.submittedBy() != actor.id())) throw missing();
+        if (order == null || (actor.role() == Role.STUDENT && order.submittedBy() != actor.id())
+                || (actor.role() == Role.MAINTAINER && !Objects.equals(order.assigneeId(), actor.id()))) throw missing();
         return order;
     }
     private void requireReader(AccountPrincipal actor) {
-        if (!Set.of(Role.STUDENT, Role.DORM_MANAGER, Role.SYSTEM_ADMIN).contains(actor.role())) throw new ApiException(HttpStatus.FORBIDDEN, "FORBIDDEN", "没有访问报修工单的权限");
+        if (!Set.of(Role.STUDENT, Role.DORM_MANAGER, Role.SYSTEM_ADMIN, Role.MAINTAINER).contains(actor.role())) throw new ApiException(HttpStatus.FORBIDDEN, "FORBIDDEN", "没有访问报修工单的权限");
     }
     private ApiException missing() { return new ApiException(HttpStatus.NOT_FOUND, "REPAIR_NOT_FOUND", "工单或图片不存在，或无访问权限"); }
     private String fingerprint(Category category, String description, List<RepairImageStorage.Prepared> images) {

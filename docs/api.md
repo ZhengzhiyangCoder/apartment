@@ -93,12 +93,12 @@
 | 方法与路径 | 权限与输入 | 结果 |
 |---|---|---|
 | POST /api/repairs | 仅已入住学生；multipart/form-data：category、description、requestId、可选重复 images 字段；需 CSRF | 201，工单详情 |
-| GET /api/repairs | 学生仅本人；宿管与系统管理员全部；q/status/page/size | items/total/page/size |
+| GET /api/repairs | 学生仅本人；维修人员仅当前负责；宿管与系统管理员全部；q/status/page/size | items/total/page/size |
 | GET /api/repairs/{id} | 同工单查询范围 | 工单、images、logs |
 | GET /api/repairs/{id}/images/{imageId} | 每次请求重新核验账号及工单范围 | image/png，Cache-Control: no-store |
 | POST /api/repairs/{id}/cancel | 学生本人、宿管、系统管理员；JSON reason 非空白、最多500字；需 CSRF | 200，取消后的详情 |
 
-新工单 PENDING_ASSIGNMENT（待分配）；05只提供待分配→CANCELLED（已取消）。PENDING/IN_PROGRESS/COMPLETED 为规格既定后续状态，06接入派单、待处理取消与维修角色权限；本任务不提供维修角色入口。
+新工单 PENDING_ASSIGNMENT（待分配）。任务06已接入完整状态流程，见下节；05当时仅提供待分配取消。
 
 问题类型为 PLUMBING 给排水、ELECTRICAL 电器照明、DOORS 门窗、FURNITURE 家具设施、OTHER 其他问题（当前实现的表单分类）。描述必填1–2000字；requestId为UUID，同一账号相同标识且相同内容重试返回原工单，不重复创建图片/日志。修改内容必须换新标识，复用旧标识返回409 REQUEST_REUSED。页面保留失败输入和重试标识，内容修改时生成新标识。
 
@@ -109,3 +109,22 @@
 q最长64字，文字包含查询描述、楼栋名、房号或提交人姓名；status只接受列出的枚举；page从1开始，size默认10、最大100，按id倒序。客户端提交人筛选不能扩大学生范围。无权工单或不存在的图片均404 REPAIR_NOT_FOUND；未登录401、无角色权限403。不存在公开静态图片目录或硬删除接口。
 
 取消需原因；重复取消和过时状态返回409 REPAIR_CHANGED，失败不追加状态日志。工单写入、图片关联、状态日志与 REPAIR_SUBMITTED / REPAIR_CANCELLED 审计同事务。磁盘写入失败会回滚；事务失败删除本次新文件。关联账号、学生资料和楼栋/寝室/床位有未完工单时，停用返回409 UNFINISHED_REPAIRS；当前入住限制仍先检查，终态历史保留且不阻止停用。
+
+## 派单与维修闭环（任务06）
+
+| 方法与路径 | 权限与JSON输入 | 结果 |
+|---|---|---|
+| GET /api/repairs/maintainers | 系统管理员、宿舍管理员；q/page/size | 有效且启用的维修人员分页，items仅含id/username/displayName |
+| POST /api/repairs/{id}/assign | 两类管理角色；assigneeId/version | 待分配→待处理 |
+| POST /api/repairs/{id}/reassign | 两类管理角色；assigneeId/version/reason | 仅待处理；换另一位维修人员，状态不变 |
+| POST /api/repairs/{id}/start | 当前负责人且为维修角色；version | 待处理→处理中 |
+| POST /api/repairs/{id}/complete | 当前负责人且为维修角色；version/completionNote | 处理中→已完成 |
+| POST /api/repairs/{id}/cancel | 本人学生、两类管理角色；reason | 待分配或待处理→已取消 |
+
+所有写入需CSRF，成功200返回详情。assigneeId必须是正整数；新增四个工作流命令的version必填且为非负整数，来自最新详情。旧版本或非法状态409 REPAIR_CHANGED，不能跳过处理中、重开终态或改写完成结果。重分配原因和处理说明均必填、不可空白、最多500字，保存去除首尾空白。重分配相同负责人409 SAME_ASSIGNEE；无效、非维修或停用账号409 MAINTAINER_REQUIRED，人员选项不是写入授权。
+
+列表/详情新增assigneeId/assigneeName、assignedBy/assignedByName/assignedAt（最近一次派单）、startedAt/completedAt/completionNote、version。未发生的字段为null，旧单version初始0；每次变化递增。时间与操作者由服务端生成。状态日志新增previousAssigneeId/previousAssigneeName/assigneeId/assigneeName，保存责任人变化的姓名快照；重分配为PENDING→PENDING，不覆盖旧日志。
+
+维修人员范围从Session身份确定：只能读取当前分配给自己的工单、历史状态和图片，传入assigneeId/owner等参数不能扩大范围。重分配后旧负责人后续列表不含该单，详情、图片及开始/完成请求均404；最终负责人仍可查看已完成/已取消记录。其他角色的本人/全校范围不变。401会话失效、403角色/CSRF拒绝、404工单不存在或无权限，均不泄露存储路径。
+
+派单、重分配、开始、完成、取消和账号停用/角色变更共用事务写锁，在锁内重新校验有效身份、最新负责人及状态。操作、责任人/时间/结果、状态日志及审计整体提交；失败不留下部分变化。审计新增REPAIR_ASSIGNED、REPAIR_REASSIGNED、REPAIR_STARTED、REPAIR_COMPLETED，target_type=REPAIR，保存前后快照。当前负责人有未完工单时，停用或改换角色均409 UNFINISHED_REPAIRS；终态历史不阻止停用，记录和外键继续保留。

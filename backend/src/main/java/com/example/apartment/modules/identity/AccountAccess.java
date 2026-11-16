@@ -43,6 +43,28 @@ public class AccountAccess {
         }
     }
 
+    public record Maintainer(long id, String username, String displayName) {}
+    public record MaintainerPage(java.util.List<Maintainer> items, long total, int page, int size) {}
+
+    @Transactional(readOnly = true)
+    public MaintainerPage enabledMaintainers(String q, int page, int size) {
+        if (q.length() > 64 || page < 1 || size < 1 || size > 100) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "INVALID_QUERY", "关键词最多 64 字，页码至少为 1，每页 1–100 条");
+        }
+        return new MaintainerPage(accounts.enabledMaintainers(q.strip(), size, (long) (page - 1) * size),
+                management.count(q.strip(), Role.MAINTAINER, true), page, size);
+    }
+
+    /** Caller holds the shared business lock, so role/enable changes cannot race assignment. */
+    @Transactional(propagation = Propagation.MANDATORY)
+    public Maintainer lockEnabledMaintainer(long id) {
+        var account = accounts.lockById(id);
+        if (account == null || !account.enabled() || account.role() != Role.MAINTAINER) {
+            throw new ApiException(HttpStatus.CONFLICT, "MAINTAINER_REQUIRED", "请选择已启用的维修人员，刷新人员列表后重试");
+        }
+        return new Maintainer(account.id(), account.username(), account.displayName());
+    }
+
     @Transactional(readOnly = true)
     public java.util.Map<Long, AccountSummary> summaries(java.util.List<Long> ids) {
         if (ids.isEmpty()) return java.util.Map.of();

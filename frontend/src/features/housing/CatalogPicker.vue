@@ -5,7 +5,7 @@ import { request } from '../../lib/http'
 import type { PageResult } from './types'
 
 interface Choice { id: number; name?: string; roomNo?: string; buildingName?: string; buildingEnabled?: boolean; username?: string; displayName?: string; bedNo?: string; studentNo?: string; fullName?: string; accountEnabled?: boolean }
-const props = defineProps<{ source: 'buildings' | 'rooms' | 'accounts' | 'students' | 'vacant-beds'; label: string; disabled: boolean }>()
+const props = defineProps<{ source: 'buildings' | 'rooms' | 'accounts' | 'students' | 'vacant-beds' | 'maintainers'; label: string; disabled: boolean }>()
 const selected = defineModel<number | null>({ required: true })
 const emit = defineEmits<{ failure: [unknown] }>()
 const query = ref(''), error = ref(''), loading = ref(false)
@@ -16,7 +16,7 @@ async function load(page = 1) {
   try {
     const params = new URLSearchParams({ q: query.value, page: String(page), size: '10', enabled: 'true' })
     if (props.source === 'accounts') params.set('role', 'STUDENT')
-    const path = props.source === 'accounts' ? '/api/identity/accounts' : `/api/housing/${props.source}`
+    const path = props.source === 'accounts' ? '/api/identity/accounts' : props.source === 'maintainers' ? '/api/repairs/maintainers' : `/api/housing/${props.source}`
     result.value = await request<PageResult<Choice>>(`${path}?${params}`)
   } catch (failure) { error.value = failure instanceof Error ? failure.message : '加载失败，请重试'; emit('failure', failure) }
   finally { loading.value = false }
