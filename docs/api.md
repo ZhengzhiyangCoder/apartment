@@ -304,3 +304,5 @@ SCORE_DRAFT_SAVED审计与暂存同事务，target_type=BATCH；仅记录roomId�
 references含固定应用内路径，使用稳定业务ID定位当前来源；历史快照不随改名/停用改变。`/audit?record={审计ID}`可直达详情。来源为`/accounts?record=...`、`/housing?kind=buildings|rooms|beds|students&record=...`、`/residencies?record=...`、`/repairs?record=...`、`/schemes?record=...`、`/inspections?batch=...&room=...`、`/rectifications?record=...`。来源仍走独立业务授权，链接本身不授予权限。成绩更正历史、工单状态日志、整改轨迹仍由原领域接口提供，不复制成新的业务历史。
 
 为精确定位，新增 `GET /api/identity/accounts/{id}` 和 `GET /api/housing/{buildings|rooms|beds|students|residencies}/{id}`。账号/学生资料/住宿关系仅SYSTEM_ADMIN；楼栋/寝室/床位两管理角色只读。返回原有公开视图，不存在404，保留停用资料及历史住宿。界面“退出记录定位”恢复普通列表。
+
+住宿资料来源显式提供kind时，页面校验分类及当前角色；未知分类显示错误，无权访问学生资料的角色跳转拒绝页，不以同ID楼栋替代原对象。

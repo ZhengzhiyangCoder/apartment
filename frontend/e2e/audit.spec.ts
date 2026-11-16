@@ -222,3 +222,25 @@ test('审计来源加载期间切换批次会取消旧的成绩自动定位', as
     await expect(page.getByRole('table',{name:'本周应检寝室',exact:true})).toContainText('95.00')
   } finally {release();await done;await page.unroute(pattern)}
 })
+
+test('降为宿管后本人旧审计不能把学生资料来源替换为楼栋', async ({page,browser}) => {
+  await login(page,'system_admin')
+  const account=await post(page,'/api/identity/accounts',{username:'former_admin',displayName:'模拟原系统管理员',role:'SYSTEM_ADMIN',password:'DemoPass2026!'})
+  const student=await post(page,'/api/identity/accounts',{username:'audit_demotion_student',displayName:'模拟资料学生',role:'STUDENT',password:'DemoPass2026!'})
+  const context=await browser.newContext({viewport:page.viewportSize()!}),other=await context.newPage()
+  try {
+    await login(other,'former_admin')
+    const profile=await post(other,'/api/housing/students',{userId:student.id,studentNo:'audit_demotion_student',fullName:'模拟资料学生',college:'模拟学院',major:'模拟专业',className:'模拟班级'})
+    const entry=await audit(other,'STUDENT_CREATED')
+    await post(page,`/api/identity/accounts/${account.id}/role`,{version:0,role:'DORM_MANAGER'},200)
+    await other.goto('/login');await other.getByLabel('账号',{exact:true}).fill('former_admin');await other.getByLabel('密码',{exact:true}).fill('DemoPass2026!');await other.getByRole('button',{name:'登录',exact:true}).click()
+    await expect(other.getByRole('link',{name:'本人操作记录',exact:true})).toBeVisible()
+    await other.goto(`/audit?record=${entry.id}`)
+    await other.getByRole('dialog',{name:'操作审计详情',exact:true}).getByRole('link',{name:'住宿资料',exact:true}).click()
+    await expect(other).toHaveURL(/\/forbidden$/)
+    expect((await other.request.get(`/api/housing/students/${profile.id}`)).status()).toBe(403)
+    await page.goto('/housing?kind=unsupported&record=1')
+    await expect(page.getByRole('alert')).toContainText('资料分类无效')
+    await expect(page.getByRole('table').getByRole('row')).toHaveCount(1)
+  } finally {await context.close()}
+})

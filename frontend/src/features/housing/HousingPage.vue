@@ -35,6 +35,16 @@ async function load(page = 1) {
   if (loading.value) return
   loading.value = true; error.value = ''
   try {
+    const requested = String(route.query.kind ?? '')
+    if (requested && !Object.prototype.hasOwnProperty.call(names, requested)) {
+      result.value = { items: [], total: 0, page: 1, size: query.size }
+      error.value = '资料分类无效，请重新从审计记录进入或选择有效分类。'
+      return
+    }
+    if (requested && !tabs.value.includes(requested as CatalogKind)) {
+      await router.replace('/forbidden')
+      return
+    }
     if (record.value) {
       const item = await request<CatalogItem>(`/api/housing/${kind.value}/${encodeURIComponent(record.value)}`)
       result.value = { items: [item], total: 1, page: 1, size: 10 }
@@ -50,12 +60,12 @@ async function load(page = 1) {
   } catch (failure) { if (!await authorization(failure)) error.value = failure instanceof Error ? failure.message : '加载失败，请重试' }
   finally { loading.value = false }
 }
-function switchTab(tab: CatalogKind) {
+async function switchTab(tab: CatalogKind) {
   if (loading.value) return
-  record.value = ''; void router.replace({ path: '/housing' }); kind.value = tab; scope.value = null; query.q = ''; query.enabled = ''; success.value = ''; result.value.items = []; load()
+  record.value = ''; await router.replace({ path: '/housing' }); kind.value = tab; scope.value = null; query.q = ''; query.enabled = ''; success.value = ''; result.value.items = []; load()
 }
-function children(item: Building | Room) {
-  record.value = ''; void router.replace({ path: '/housing' }); kind.value = 'name' in item ? 'rooms' : 'beds'
+async function children(item: Building | Room) {
+  record.value = ''; await router.replace({ path: '/housing' }); kind.value = 'name' in item ? 'rooms' : 'beds'
   scope.value = { id: item.id, label: itemLabel(item), param: 'name' in item ? 'buildingId' : 'roomId' }
   query.q = ''; query.enabled = ''; success.value = ''; result.value.items = []; load()
 }
