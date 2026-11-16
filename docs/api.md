@@ -1,4 +1,4 @@
-# 接口说明 — 任务 01–10
+# 接口说明 — 任务 01–11
 
 所有路径从前端同源入口的 `/api` 访问。Session Cookie 名称为 `APARTMENTSESSION`，不与同机其他项目的默认 Cookie 混用。JSON 查询不返回密码、密码哈希或内部会话字段。
 
@@ -224,3 +224,23 @@ SCORE_DRAFT_SAVED审计与暂存同事务，target_type=BATCH；仅记录roomId�
 名单调整不受开放状态限制，但不自动重开批次。补入时在写锁内重新验证当前入住/启用链并保存最新位置快照；已经在名单409 ROOM_ALREADY_EXPECTED，不符合条件409 ROOM_NOT_ELIGIBLE。移出已评分409 SCORED_ROOM_REQUIRED，名单外404 NOT_EXPECTED_ROOM。草稿外键不依赖名单项，移出保留所有个人草稿；原快照、原因和操作者可从变更记录追溯。后续入住/退宿继续不自动改写名单。
 
 分页默认10、最多100、page至少1，候选q最多64字符，按楼栋名/房号/roomId顺序字面匹配。变更按审计id倒序，返回items/total/page/size，item包含id/actorId/action/createdAt/before/after；before/after含batch，名单操作另含room（加入前或移出后为null），after含reason。动作白名单BATCH_ROOM_ADDED/REMOVED/CLOSED/REOPENED/SUSPENDED/RESTORED/EXPIRED；只展示这些明确公开的治理快照，系统审计查询仍归15。所有业务更改与审计同一事务，审计失败全部回滚。
+
+
+## 学生成绩、趋势与楼栋排行（任务11）
+
+`GET /api/hygiene/student/results`：仅已登录学生；每次在同一个只读事务内通过 `CurrentResidencyQuery` 推导当前寝室/楼栋。无当前住宿返回409 NOT_RESIDENT；可选roomId/buildingId若与当前范围不同返回403 RESULT_SCOPE_CHANGED（包括调寝前的旧范围）；其他角色403、匿名或失效会话401。
+
+参数：period=WEEK（默认）或MONTH；date为周期内任意ISO日期，省略按Asia/Shanghai当天，年份1901–9998；page默认1且至少1，size默认10、1–100。日期/枚举/分页错误400。只分页榜单，摘要、趋势和明细保持所选完整周期。
+
+响应：
+
+- scope：当前buildingId/buildingName/roomId/roomNo，不返回同寝学生信息。
+- period：kind/start/end/label，左闭右开；周label为ISO年周，月按批次周一归属。
+- summary：当前寝室的score/samples/rank；无有效记录为null/0/null，零分为有效成绩。
+- trend：截至所选周期的12周或12月，依次返回period/score/samples，缺失保留null/0。
+- weeks：周期内各个周一对应的检查明细，含period/batchId/status/schemeName/threshold/totalScore/submittedAt/dimensions。状态INSPECTED、UNINSPECTED、NOT_PREPARED、NOT_EXPECTED、SUSPENDED；非有效样本分数及提交时间为null，已绑定批次可核对原标准。维度仅name/weight/score，不公开评分人或其他学生。
+- rankings：items/total/page/size；item严格只含roomNo/score/samples/rank，至少一条有效成绩才入榜。分页超界返回空items，不改变总数和本人名次。
+
+所有聚合读取唯一正式评分的当前值，不读取草稿；排除SUSPENDED，CLOSED仍有效。月均先精确AVG再ROUND到2位，排名在舍入后的成绩上执行RANK（1/1/3），同分房号、内部roomId稳定排序。寝室曾改号时同一roomId不拆成多名，本周期采用最近有效检查的房号快照。归属过滤只用batch.week_start，历史补录submittedAt不改变周月归属。明细维度按各次原方案分别展示，不合并不同版本的同名维度。
+
+页面 `/my-results` 从“我的住宿”及学生侧栏进入；选择周/月与日期联动所有区域。刷新、重新聚焦窗口会核对当前住宿，加载/失败时清除旧结果和打开的明细；请求序号防止迟到结果覆盖新结果。趋势图空缺断线，同时提供可展开数据表。管理端全校统计与更正写入仍由12/14交付。

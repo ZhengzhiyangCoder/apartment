@@ -24,6 +24,7 @@ async function signOut() {
         <RouterLink v-if="['SYSTEM_ADMIN', 'DORM_MANAGER'].includes(currentUser.role)" to="/housing" class="nav-item"><AppIcon name="building" />住宿管理</RouterLink>
         <RouterLink v-if="currentUser.role === 'SYSTEM_ADMIN'" to="/residencies" class="nav-item"><AppIcon name="building" />入住办理</RouterLink>
         <RouterLink v-if="currentUser.role === 'STUDENT'" to="/my-residency" class="nav-item"><AppIcon name="building" />我的住宿</RouterLink>
+        <RouterLink v-if="currentUser.role === 'STUDENT'" to="/my-results" class="nav-item"><AppIcon name="shield" />寝室成绩与排行</RouterLink>
         <RouterLink to="/repairs" class="nav-item"><AppIcon name="building" />{{ currentUser.role === 'STUDENT' ? '我的报修' : currentUser.role === 'MAINTAINER' ? '我的维修任务' : '报修管理' }}</RouterLink>
         <RouterLink v-if="['SYSTEM_ADMIN', 'DORM_MANAGER'].includes(currentUser.role)" to="/schemes" class="nav-item"><AppIcon name="shield" />评分方案</RouterLink>
         <RouterLink v-if="['SYSTEM_ADMIN', 'DORM_MANAGER'].includes(currentUser.role)" to="/inspections" class="nav-item"><AppIcon name="shield" />本周卫生检查</RouterLink>
