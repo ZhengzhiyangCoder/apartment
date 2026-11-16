@@ -110,3 +110,11 @@
 - [API测试](../../backend/src/test/java/com/example/apartment/repair/RepairHttpTest.java)、[浏览器测试](../../frontend/e2e/repairs.spec.ts)、[测试结果](../../docs/testing.md)、[模拟演示](../../docs/demo.md)。36后端/44全量浏览器、修正后36后端/6报修浏览器通过。
 - [API](../../docs/api.md)、[数据库](../../docs/database.md)、[运行](../../docs/local-run.md)随片更新。V1–V7空库及演示升级、重复seed与重启后的图片摘要验证完成。
 - 项目内复用既有脚本/测试与受控身份住宿边界，未安装或登记全局新资产。临时模拟/验证脚本在忽略的.runtime，仅本项目本轮使用；不登记为跨项目可用资产。下一项06待开始。
+
+
+## 任务06派单与维修闭环（2026-11-16）
+
+- [任务票](../../.scratch/dorm-management/issues/06-repair-workflow.md)、[归档卡](../task-cards/completed/20261116-task06-implement.md)、[实施](../logs/20261116-task06-implement.md)、[双轴审查](../logs/20261116-task06-review.md)。
+- [V8迁移](../../backend/src/main/resources/db/migration/V8__repair_workflow.sql)、[后端](../../backend/src/main/java/com/example/apartment/modules/repair/)、[界面](../../frontend/src/features/repair/)、[API测试](../../backend/src/test/java/com/example/apartment/repair/RepairHttpTest.java)、[浏览器测试](../../frontend/e2e/repairs.spec.ts)。
+- [测试结果](../../docs/testing.md)：43后端/50全量双尺寸浏览器，空库V1–V8，演示升级和重启持久化一致；[演示](../../docs/demo.md)、[API](../../docs/api.md)、[数据库](../../docs/database.md)已更新。
+- [截图](../../output/playwright/)task06-assign-error/complete-error/student-result/reassign-conflict/access-revoked/pending-cancel各两尺寸共12张，运行产物不入Git。复用项目既有脚本与测试，无新增全局资产；一次性演示核验脚本仅保留.runtime，不登记跨项目可用。下一项07待开始。
