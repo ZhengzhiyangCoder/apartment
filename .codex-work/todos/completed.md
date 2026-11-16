@@ -89,3 +89,8 @@
 
 - 完成评分维度/权重/阈值、草稿、启用与历史版本、复制调整、权限及审计；50后端/58全量浏览器、构建、空库V1–V9、演示升级与重启持久化通过，独立双轴0发现。实现6a14939提交本地main，未推送；真实批次冻结由08承接。
 - [任务票](../../.scratch/dorm-management/issues/07-scoring-schemes.md)、[归档卡](../task-cards/completed/20261116-task07-implement.md)、[实施](../logs/20261116-task07-implement.md)、[审查](../logs/20261116-task07-review.md)。下一项08；总索引跨目录同步仍在current待办。
+
+## 2026-11-16 · 任务08本周检查与正式评分
+
+- 完成当前ISO周显式准备、名单/方案快照、宿管正式录分、精确计算、并发去重、事务审计、进度及未完应检停用保护；61后端/66全量浏览器、构建、空库V1–V11、演示升级与重启持久化通过，双轴各0发现。实现b7fcc8b在本地main，未推送。
+- [任务票](../../.scratch/dorm-management/issues/08-weekly-first-score.md)、[归档卡](../task-cards/completed/20261116-task08-implement.md)、[实施](../logs/20261116-task08-implement.md)、[审查](../logs/20261116-task08-review.md)。下一项09未启动；总索引同步沿用current待办。

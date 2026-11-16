@@ -126,3 +126,11 @@
 - [V9迁移](../../backend/src/main/resources/db/migration/V9__hygiene_schemes.sql)、[后端](../../backend/src/main/java/com/example/apartment/modules/hygiene/)、[页面](../../frontend/src/features/hygiene/)、[API测试](../../backend/src/test/java/com/example/apartment/hygiene/SchemeHttpTest.java)、[浏览器测试](../../frontend/e2e/schemes.spec.ts)。
 - [测试](../../docs/testing.md)：50后端/58全量浏览器、空库V1–V9、演示升级与重启持久化通过；[演示](../../docs/demo.md)、[API](../../docs/api.md)、[数据库](../../docs/database.md)、[运行](../../docs/local-run.md)已更新。
 - [截图](../../output/playwright/) task07-history/manager/form-error/draft-conflict/activate-conflict/list各两尺寸共12张；运行产物不入Git。复用项目现有工具，无新全局资产；一次性核验脚本留.runtime，不登记跨项目可用。下一项08承接真实方案绑定与冻结回归。
+
+
+## 任务08本周检查与正式评分（2026-11-16）
+
+- [任务票](../../.scratch/dorm-management/issues/08-weekly-first-score.md)、[归档卡](../task-cards/completed/20261116-task08-implement.md)、[实施](../logs/20261116-task08-implement.md)、[独立审查](../logs/20261116-task08-review.md)。
+- [V10](../../backend/src/main/resources/db/migration/V10__weekly_inspections.sql)、[V11](../../backend/src/main/resources/db/migration/V11__formal_scores.sql)、[后端](../../backend/src/main/java/com/example/apartment/modules/hygiene/)、[页面](../../frontend/src/features/hygiene/InspectionsPage.vue)、[HTTP测试](../../backend/src/test/java/com/example/apartment/hygiene/BatchHttpTest.java)、[浏览器测试](../../frontend/e2e/batches.spec.ts)。
+- [测试结果](../../docs/testing.md)：61后端/66全量浏览器、空库V1–V11、演示升级与重启持久化；[演示](../../docs/demo.md)、[API](../../docs/api.md)、[数据库](../../docs/database.md)、[运行](../../docs/local-run.md)已更新。
+- [截图](../../output/playwright/)task08-score/progress/network/conflict/empty/list各两尺寸共12张，运行产物不入Git。复用已有脚本/测试/业务锁，无新全局资产；.runtime一次性验证不登记为跨项目工具。下一项09未启动。
