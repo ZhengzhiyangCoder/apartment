@@ -49,7 +49,7 @@ public class HousingCatalogService {
         var before = required(catalog.building(id)); checkVersion(before.version(), input.version());
         if (before.enabled() == input.enabled()) return before;
         if (!input.enabled()) residencies.requireBuildingVacant(id);
-        // Tasks 05/08/13 add unfinished work/inspection/rectification guards.
+        // Task 13 adds unfinished rectification guards.
         catalog.enableBuilding(id, input.enabled());
         var after = catalog.building(id);
         audit.record(actor.id(), input.enabled() ? "BUILDING_ENABLED" : "BUILDING_DISABLED", "BUILDING", id, before, after);
@@ -96,7 +96,7 @@ public class HousingCatalogService {
         if (before.enabled() == input.enabled()) return before;
         if (input.enabled()) requireEnabled(before.buildingEnabled());
         if (!input.enabled()) residencies.requireRoomVacant(id);
-        // Tasks 05/08/13 add unfinished work/inspection/rectification guards.
+        // Task 13 adds unfinished rectification guards.
         catalog.enableRoom(id, input.enabled());
         var after = catalog.room(id);
         audit.record(actor.id(), input.enabled() ? "ROOM_ENABLED" : "ROOM_DISABLED", "ROOM", id, before, after);

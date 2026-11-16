@@ -1,6 +1,6 @@
-# 实际数据库 — 任务 01–07
+# 实际数据库 — 任务 01–08
 
-版本迁移是唯一结构执行来源：`backend/src/main/resources/db/migration/` 中 V1 身份表、V2 账号审计表与角色状态索引、V3 楼栋、V4 寝室床位、V5 学生资料、V6 住宿关系、V7 报修工单/图片/状态日志、V8 派单责任与处理结果、V9 评分方案与维度。当前不提前建立后续业务模块空表。原始 18 表设计为后续任务的建模输入，不是已经运行的数据库。
+版本迁移是唯一结构执行来源：`backend/src/main/resources/db/migration/` 中 V1 身份表、V2 账号审计表与角色状态索引、V3 楼栋、V4 寝室床位、V5 学生资料、V6 住宿关系、V7 报修工单/图片/状态日志、V8 派单责任与处理结果、V9 评分方案与维度、V10 周批次与应检快照、V11 正式评分与明细。当前不提前建立后续业务模块空表。原始 18 表设计为后续任务的建模输入，不是已经运行的数据库。
 
 ## sys_user
 
@@ -32,7 +32,7 @@ Flyway 另外维护自身迁移历史表。账号与学生资料的分工保持�
 | id | 自增主键 |
 | actor_id | 操作者 sys_user 外键，不允许级联删除身份 |
 | action | ACCOUNT_CREATED / ACCOUNT_ROLE_CHANGED / ACCOUNT_PASSWORD_RESET / ACCOUNT_DISABLED / ACCOUNT_ENABLED |
-| target_type / target_id | ACCOUNT / BUILDING / ROOM / BED / STUDENT / RESIDENCY / REPAIR / SCHEME 与对应目标 ID |
+| target_type / target_id | ACCOUNT / BUILDING / ROOM / BED / STUDENT / RESIDENCY / REPAIR / SCHEME / BATCH / SCORE 与对应目标 ID |
 | before_data / after_data | 白名单账号或住宿资料快照 JSON；创建的 before_data 为 null；不存密码或哈希 |
 | created_at | 数据库生成的实际操作时间，微秒精度 |
 
@@ -119,3 +119,22 @@ repair_status_log新增可空previous_assignee_id/name、assignee_id/name，人�
 应用在MySQL存储前使用BigDecimal检查小数位及范围，启用时精确相加为100。创建、草稿编辑、复制、启用与归档复用AccountAccess管理员锁，锁后读取最新状态和version。启用还核对调用者确认的当前启用id；新旧状态和两条审计原子提交。只读事务不拿写锁或追加日志。
 
 V9只新增两表，V1–V8不变，无演示数据或批次占位表。首次启用即冻结定义，任务08再以真实批次外键绑定版本，回归启用切换和已绑定历史不可变性。撤销不删除历史，需备份后追加前向修正迁移。测试清理先删除维度，再按id倒序删除方案（复制来源总是较早记录）；仅apartment_test允许清理，正常seed不清理方案。
+
+## V10/V11 周检批次与正式评分
+
+| 表 | 保存内容 | 关键约束 |
+|---|---|---|
+| V10 hygiene_batch | ISO年周、周一归属日、方案id/名称/阈值、OPEN/CLOSED/SUSPENDED、准备人和真实时间 | (iso_year,iso_week)及week_start各自唯一；方案/账号外键；周数与状态CHECK |
+| V10 hygiene_batch_room | 应检批次、寝室、楼栋及楼栋名/房号快照 | (batch_id,room_id)主键，批次/寝室/楼栋外键，批次内位置排序索引 |
+| V11 hygiene_score | 批次、寝室、精确总分、适用阈值、录分人和实际时间 | (batch_id,room_id)唯一且组合外键指向真实应检项；分数/阈值CHECK；账号外键 |
+| V11 hygiene_score_dimension | 正式评分、原维度id、名称/权重/整数分值/顺序快照 | (score_id,dimension_id)主键，维度/评分外键；顺序唯一；分数/权重/顺序CHECK |
+
+V10与V11随准备和正式录分两个功能切片依次新增，已应用迁移不回写。所有表使用utf8mb4_0900_as_cs、无级联删除；无硬删除API。V1–V9保持原字节。无自动DOWN；若撤销，先停写备份数据库及图片，使用后续前向修正，不能删除已评分历史。
+
+准备、启用方案、入住流转、资料停用和正式录分复用同一事务业务锁。准备在锁内通过housing.InspectionHousingQuery获取当前启用且有人入住的寝室，hygiene只保存受控查询的快照；真实方案外键与已发布定义冻结共同保留标准。评分从绑定方案读取维度，在服务端完整校验与精确计算后写主记录、每项快照和统一审计；数据库唯一键兜底防重复。
+
+进度由应检与正式评分实时聚合，不保存可漂移的已检计数或把缺检补零。零应检completionRate=null。batch.week_start负责周/月归属，score.submitted_at保存实际提交时间；Clock为服务端UTC时钟，计算ISO年周时显式转Asia/Shanghai，测试用受控Clock验证边界，生产无改时接口。
+
+InspectionReferences只依赖本模块Mapper，由housing既有停用边界调用，避免反向应用服务循环。未评分且OPEN的应检项阻止楼栋/寝室停用；过去周未处理事项仍保护，10的显式关闭/停检/名单治理负责后续处理。床位及学生不属于应检对象。评分历史及已绑定方案不硬删除。
+
+审计新增BATCH_PREPARED（批次、标准与名单快照）和SCORE_SUBMITTED（评分主记录与全部明细），target_type为BATCH/SCORE。只读列表不写业务或审计。测试清理在方案/住房之前依次删除评分明细、评分、应检项、批次；只清理固定apartment_test。正常演示seed不会重置批次、名单、分数或历史。

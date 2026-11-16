@@ -1,4 +1,4 @@
-# 接口说明 — 任务 01–07
+# 接口说明 — 任务 01–08
 
 所有路径从前端同源入口的 `/api` 访问。Session Cookie 名称为 `APARTMENTSESSION`，不与同机其他项目的默认 Cookie 混用。JSON 查询不返回密码、密码哈希或内部会话字段。
 
@@ -150,4 +150,29 @@ q最长64字，文字包含查询描述、楼栋名、房号或提交人姓名�
 
 q为最多64字的名称字面包含匹配，区分大小写；status为上述枚举，宿管筛DRAFT只得到空列表。page从1开始，size默认10、上限100，固定id倒序。active独立于列表筛选，返回当前启用摘要或null；只读查询不创建或启用方案。审计动作SCHEME_CREATED/UPDATED/COPIED/ARCHIVED/ACTIVATED，target_type=SCHEME，包含前后定义快照，操作者来自Session。
 
-本任务冻结所有已启用/历史定义，未建立检查批次或伪造引用。08创建批次时需在同一写锁内绑定当时的ACTIVE方案及维度，保存真实外键与名单；用真实批次回归切换方案不改变已绑定标准。
+07冻结所有已启用/历史定义；08已在同一写锁内建立真实批次绑定与名单，并回归验证切换标准不改变旧批次及评分快照。
+
+## 当前周批次与正式评分（任务08）
+
+| 方法与路径 | 输入 | 权限与返回 |
+|---|---|---|
+| GET /api/hygiene/batches/current | 无 | 两类管理角色；isoYear/isoWeek/weekStart/batch，无批次时batch=null |
+| POST /api/hygiene/batches/current/prepare | 无业务参数，可传{}；需CSRF | 两类管理角色；200批次详情，重复/并发返回同一批次 |
+| GET /api/hygiene/batches/{id} | 批次id | 两类管理角色；批次详情 |
+| GET /api/hygiene/batches/{id}/rooms | q/buildingId/inspected/page/size | 两类管理角色；应检分页items/total/page/size |
+| GET /api/hygiene/batches/{id}/rooms/{roomId} | 批次及寝室id | 两类管理角色；{room,score}，未检查score=null |
+| POST /api/hygiene/batches/{id}/rooms/{roomId}/score | dimensions:[{dimensionId,score}]；需CSRF | 仅宿舍管理员；201正式评分 |
+
+准备只取服务端当前Asia/Shanghai ISO年周，不接受客户端指定周或方案/名单；无未来周业务入口。只读接口不会准备或改变批次。无启用方案409 NO_ACTIVE_SCHEME。准备时在统一业务写锁内固定当时启用方案id、名称、阈值及全部启用且有当前入住的寝室；重复准备不重取名单。后续入住/退宿、位置改名和启用版本变更不回写快照。
+
+批次详情含id/isoYear/isoWeek/weekStart/schemeId/schemeName/threshold/status/createdBy/createdAt/expectedCount/inspectedCount/scoringAllowed/completionRate/dimensions/buildings。weekStart为该ISO周周一的日期；时间戳为UTC ISO时间，页面按上海时间展示。dimensions为绑定版本的id/name/weight/sortOrder；buildings为应检快照中的楼栋id/name，不受列表筛选影响。completionRate为已检/应检百分比、四舍五入两位；无应检时为null。100%仍保持开放。
+
+status为OPEN/CLOSED/SUSPENDED；08创建OPEN，不提供管理状态入口。scoringAllowed仅当前周OPEN为true，角色权限仍单独检查；旧周即使存储状态仍OPEN，普通提交也409 BATCH_NOT_OPEN，不通过GET改写状态。10承接显式状态管理、名单调整及历史授权补录。
+
+应检查询q最多64字，按快照楼栋/房号字面包含；buildingId可选正整数；inspected可选true/false。page从1开始，size默认10、上限100，按快照楼栋名、房号、roomId稳定升序。items含roomId/buildingId/buildingName/roomNo/scoreId/totalScore；未检的scoreId与totalScore均为null，正式零分仍为已检查。批次不存在404 BATCH_NOT_FOUND，名单外寝室404 NOT_EXPECTED_ROOM，参数非法400 INVALID_QUERY或INVALID_INPUT。
+
+正式提交必须恰好包含绑定方案全部维度，每项唯一且为0–100整数；缺项、重复或其他维度400 INVALID_DIMENSIONS，分数格式/范围错误400 INVALID_INPUT。客户端总分、阈值、操作者及时间不能改写服务端结果。服务端BigDecimal加权并HALF_UP保留两位；40/30/30的80/90/70为80.00，0.50%权重的1分贡献0.005按最终结果舍入为0.01。重复或竞争提交409 ALREADY_SCORED，只保留一份正式记录。
+
+正式结果含id/batchId/roomId/totalScore/threshold/submittedBy/submittedAt/dimensions；明细为dimensionId/name/weight/score/sortOrder的提交快照。评分、明细与SCORE_SUBMITTED审计同事务；批次、名单与BATCH_PREPARED审计同事务。审计target_type分别为SCORE/BATCH，记录实际操作者和白名单快照；失败均回滚。不存在删除或无痕更改入口。
+
+开放批次中有未检查寝室时，相关寝室与楼栋停用409 UNFINISHED_INSPECTION（已有入住/报修保护优先）；即使已退宿仍不能绕过。已评分不阻止停用且历史保留；应检不绑定某个床位或个人，不把这项保护扩张到已退宿学生/床位。旧周未处理名单仍受保护，后续由10显式处理批次/名单。学生与维修人员不能访问本管理接口；系统管理员不能冒充宿管提交。

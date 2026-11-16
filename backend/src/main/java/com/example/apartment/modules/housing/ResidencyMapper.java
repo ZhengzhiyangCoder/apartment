@@ -49,6 +49,12 @@ public interface ResidencyMapper {
     List<HousingViews.Bed> vacantBeds(String q, int size, long offset);
     @Select("SELECT COUNT(*)" + HousingCatalogMapper.BED_FROM + VACANCY_FILTER)
     long countVacantBeds(String q);
+    @Select("SELECT r.id AS room_id, b.id AS building_id, b.name AS building_name, r.room_no"
+            + " FROM dorm_room r JOIN dorm_building b ON b.id = r.building_id"
+            + " WHERE r.enabled = TRUE AND b.enabled = TRUE AND EXISTS"
+            + " (SELECT 1 FROM housing_residency h JOIN dorm_bed d ON d.id = h.bed_id WHERE d.room_id = r.id AND h.ended_at IS NULL)"
+            + " ORDER BY b.name, r.room_no, r.id")
+    List<InspectionHousingQuery.OccupiedRoom> occupiedEnabledRooms();
     @Select("SELECT LAST_INSERT_ID()")
     long insertedId();
 }
