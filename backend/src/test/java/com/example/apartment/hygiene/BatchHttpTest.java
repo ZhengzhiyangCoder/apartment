@@ -297,4 +297,155 @@ class BatchHttpTest extends HttpIntegrationTest {
         } finally {pool.shutdownNow();}
     }
 
+    @Test
+    void personalPartialDraftSurvivesLoginAndNeverCountsAsFormalInspection() throws Exception {
+        var f=fixture();long dimension=f.batch.path("dimensions").get(0).path("id").asLong();
+        var input=Map.of("version",0,"dimensions",List.of(Map.of("dimensionId",dimension,"value","80.5")),"actorId",f.admin.account("system_admin").path("id").asLong());
+        var saved=post(f.manager,f.roomPath()+"/draft",input,200);
+        assertThat(saved.path("version").asLong()).isEqualTo(1);
+        assertThat(saved.path("dimensions").get(0).path("value").asText()).isEqualTo("80.5");
+        assertThat(get(f.manager,f.batchPath()).path("inspectedCount").asInt()).isZero();
+        assertThat(get(f.admin,f.roomPath()).path("score").isNull()).isTrue();
+        assertThat(f.manager.send("/api/auth/logout","POST",null,null,f.manager.csrf()).statusCode()).isEqualTo(204);
+        var relogin=login("dorm_manager");
+        assertThat(get(relogin,f.roomPath()+"/draft").path("draft")).isEqualTo(saved);
+        assertThat(get(relogin,"/api/hygiene/drafts").path("items").get(0)).isEqualTo(saved);
+        post(f.admin,"/api/identity/accounts",Map.of("username","other_manager","displayName","模拟另一宿管","role","DORM_MANAGER","password",PASSWORD),201);
+        var other=login("other_manager");
+        assertThat(get(other,f.roomPath()+"/draft").path("draft").isNull()).isTrue();
+        assertThat(get(other,"/api/hygiene/drafts").path("total").asInt()).isZero();
+        post(other,f.roomPath()+"/draft",Map.of("version",0,"dimensions",List.of()),200);
+        assertThat(get(relogin,f.roomPath()+"/draft").path("draft")).isEqualTo(saved);
+    }
+
+    private JsonNode saveDraft(Fixture f, Browser actor, long version, String value) throws Exception {
+        return post(actor,f.roomPath()+"/draft",Map.of("version",version,"dimensions",List.of(Map.of("dimensionId",f.batch.path("dimensions").get(0).path("id").asLong(),"value",value))),200);
+    }
+    @Test
+    void formalSubmissionClearsOnlyItsOwnDraftAndFailedOrConflictingSubmissionPreservesDrafts() throws Exception {
+        var f=fixture();
+        post(f.admin,"/api/identity/accounts",Map.of("username","other_manager","displayName","模拟另一宿管","role","DORM_MANAGER","password",PASSWORD),201);
+        var other=login("other_manager");var mine=saveDraft(f,f.manager,0,"80");var theirs=saveDraft(f,other,0,"90");
+        post(f.manager,f.roomPath()+"/score",scores(f.batch,80),400);
+        assertThat(get(f.manager,f.roomPath()+"/draft").path("draft")).isEqualTo(mine);
+        for(String table:List.of("hygiene_score_dimension","operation_log")) {
+            String predicate=table.equals("operation_log")?"action <> 'SCORE_SUBMITTED'":"name <> '摆放'";
+            jdbc.execute("ALTER TABLE "+table+" ADD CONSTRAINT test_reject_draft_publish CHECK ("+predicate+")");
+            try {
+                post(f.manager,f.roomPath()+"/score",scores(f.batch,80,90,70),500);
+                assertThat(get(f.manager,f.roomPath()+"/draft").path("draft")).isEqualTo(mine);
+                assertThat(get(f.admin,f.roomPath()).path("score").isNull()).isTrue();
+                assertThat(get(f.manager,f.batchPath()).path("inspectedCount").asInt()).isZero();
+            } finally {jdbc.execute("ALTER TABLE "+table+" DROP CHECK test_reject_draft_publish");}
+        }
+        var saved=post(f.manager,f.roomPath()+"/score",scores(f.batch,80,90,70),201);
+        assertThat(get(f.manager,f.roomPath()+"/draft").path("draft").isNull()).isTrue();
+        assertThat(get(f.manager,"/api/hygiene/drafts").path("total").asInt()).isZero();
+        assertThat(post(other,f.roomPath()+"/score",scores(f.batch,90,90,90),409).path("code").asText()).isEqualTo("ALREADY_SCORED");
+        assertThat(get(other,f.roomPath()+"/draft").path("draft")).isEqualTo(theirs);
+        assertThat(get(other,f.roomPath()).path("score")).isEqualTo(saved);
+        assertThat(get(other,f.batchPath()).path("inspectedCount").asInt()).isEqualTo(1);
+    }
+
+    @Test
+    void draftVersionRejectsStaleSaveAndPublishAndDraftAuditFailureRollsBack() throws Exception {
+        var f=fixture();var first=saveDraft(f,f.manager,0,"80");
+        long dimension=f.batch.path("dimensions").get(0).path("id").asLong();
+        var update=Map.of("version",1,"dimensions",List.of(Map.of("dimensionId",dimension,"value","90")));
+        jdbc.execute("ALTER TABLE operation_log ADD CONSTRAINT test_reject_draft CHECK (action <> 'SCORE_DRAFT_SAVED' OR before_data IS NULL)");
+        try {
+            post(f.manager,f.roomPath()+"/draft",update,500);
+            assertThat(get(f.manager,f.roomPath()+"/draft").path("draft")).isEqualTo(first);
+        } finally { jdbc.execute("ALTER TABLE operation_log DROP CHECK test_reject_draft"); }
+        var latest=post(f.manager,f.roomPath()+"/draft",update,200);
+        assertThat(post(f.manager,f.roomPath()+"/draft",update,409).path("code").asText()).isEqualTo("DRAFT_CHANGED");
+        var stale=json.valueToTree(scores(f.batch,80,90,70));((com.fasterxml.jackson.databind.node.ObjectNode)stale).put("draftVersion",1);
+        assertThat(post(f.manager,f.roomPath()+"/score",stale,409).path("code").asText()).isEqualTo("DRAFT_CHANGED");
+        assertThat(get(f.manager,f.roomPath()+"/draft").path("draft")).isEqualTo(latest);
+        assertThat(get(f.manager,f.roomPath()).path("score").isNull()).isTrue();
+        ((com.fasterxml.jackson.databind.node.ObjectNode)stale).put("draftVersion",2);
+        post(f.manager,f.roomPath()+"/score",stale,201);
+        assertThat(get(f.manager,f.roomPath()+"/draft").path("draft").isNull()).isTrue();
+    }
+
+    @Test
+    void failureToClearDraftRollsBackScoreAndRetryCanPublish() throws Exception {
+        var f=fixture();var saved=saveDraft(f,f.manager,0,"80");
+        jdbc.execute("CREATE TABLE test_draft_delete_guard (actor_id BIGINT,batch_id BIGINT,room_id BIGINT, FOREIGN KEY(actor_id,batch_id,room_id) REFERENCES hygiene_score_draft(actor_id,batch_id,room_id))");
+        try {
+            jdbc.execute("INSERT INTO test_draft_delete_guard SELECT actor_id,batch_id,room_id FROM hygiene_score_draft");
+            post(f.manager,f.roomPath()+"/score",scores(f.batch,80,90,70),500);
+            assertThat(get(f.manager,f.roomPath()+"/draft").path("draft")).isEqualTo(saved);
+            assertThat(get(f.manager,f.roomPath()).path("score").isNull()).isTrue();
+            assertThat(get(f.manager,f.batchPath()).path("inspectedCount").asInt()).isZero();
+            assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM hygiene_score_dimension",Long.class)).isZero();
+            assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM operation_log WHERE action='SCORE_SUBMITTED'",Long.class)).isZero();
+        } finally { jdbc.execute("DROP TABLE test_draft_delete_guard"); }
+        post(f.manager,f.roomPath()+"/score",scores(f.batch,80,90,70),201);
+        assertThat(get(f.manager,f.roomPath()+"/draft").path("draft").isNull()).isTrue();
+    }
+    @Test
+    void draftPermissionsValidationAndClosedOrOldBatchCannotBypassFormalRules() throws Exception {
+        var f=fixture();var draft=saveDraft(f,f.manager,0,"");long dimension=f.batch.path("dimensions").get(0).path("id").asLong();
+        assertThat(new Browser().get("/api/hygiene/drafts").statusCode()).isEqualTo(401);
+        for(var actor:List.of(f.admin,login("student"),login("maintainer"))) {
+            assertThat(actor.get("/api/hygiene/drafts").statusCode()).isEqualTo(403);
+            assertThat(actor.get(f.roomPath()+"/draft").statusCode()).isEqualTo(403);
+            post(actor,f.roomPath()+"/draft",Map.of("version",1,"dimensions",List.of()),403);
+        }
+        assertThat(f.manager.send(f.roomPath()+"/draft","POST","application/json","{}",null).statusCode()).isEqualTo(403);
+        for(Object bad:List.of(Map.of(),Map.of("version",-1,"dimensions",List.of()),
+                Map.of("version",1,"dimensions",List.of(Map.of("dimensionId",dimension,"value","12345"))),
+                Map.of("version",1,"dimensions",List.of(Map.of("dimensionId",999999,"value","80"))),
+                Map.of("version",1,"dimensions",List.of(Map.of("dimensionId",dimension,"value","80"),Map.of("dimensionId",dimension,"value","90")))))
+            post(f.manager,f.roomPath()+"/draft",bad,400);
+        for(String query:List.of("page=0","size=101","size=0")) assertThat(f.manager.get("/api/hygiene/drafts?"+query).statusCode()).isEqualTo(400);
+        assertThat(get(f.manager,"/api/hygiene/drafts?page=2&size=1").path("items").isEmpty()).isTrue();
+        post(f.manager,f.batchPath()+"/rooms/999999/draft",Map.of("version",0,"dimensions",List.of()),404);
+        for(String state:List.of("CLOSED","SUSPENDED")) {
+            jdbc.update("UPDATE hygiene_batch SET status=? WHERE id=?",state,f.batch.path("id").asLong());
+            try {
+                assertThat(get(f.manager,f.roomPath()+"/draft").path("draft").path("dimensions")).isEqualTo(draft.path("dimensions"));
+                post(f.manager,f.roomPath()+"/score",scores(f.batch,80,90,70),409);
+                post(f.manager,f.roomPath()+"/draft",Map.of("version",1,"dimensions",List.of()),409);
+            } finally {jdbc.update("UPDATE hygiene_batch SET status='OPEN' WHERE id=?",f.batch.path("id").asLong());}
+        }
+        time.at("2026-11-23T01:00:00Z");
+        assertThat(get(f.manager,"/api/hygiene/drafts").path("items").get(0)).isEqualTo(draft);
+        post(f.manager,f.roomPath()+"/score",scores(f.batch,80,90,70),409);
+        assertThat(get(f.manager,f.roomPath()+"/draft").path("draft")).isEqualTo(draft);
+        assertThat(get(f.manager,f.roomPath()).path("score").isNull()).isTrue();
+        var account=f.admin.account("dorm_manager");post(f.admin,"/api/identity/accounts/"+account.path("id").asLong()+"/enabled",Map.of("enabled",false,"version",0),200);
+        assertThat(f.manager.get("/api/hygiene/drafts").statusCode()).isEqualTo(401);
+        assertThat(f.manager.postJson(f.roomPath()+"/draft",Map.of("version",1,"dimensions",List.of())).statusCode()).isEqualTo(401);
+    }
+    @Test
+    void simultaneousDraftUpdatesAndFormalSubmissionCannotLoseNewerInputOrResurrectDraft() throws Exception {
+        var f=fixture();saveDraft(f,f.manager,0,"80");var second=login("dorm_manager");f.manager.csrf();second.csrf();
+        long dimension=f.batch.path("dimensions").get(0).path("id").asLong();
+        var update=Map.of("version",1,"dimensions",List.of(Map.of("dimensionId",dimension,"value","90")));
+        var pool=java.util.concurrent.Executors.newFixedThreadPool(2);
+        try {
+            var gate=new java.util.concurrent.CountDownLatch(1);
+            var a=pool.submit(()->{gate.await();return f.manager.postJson(f.roomPath()+"/draft",update);});
+            var b=pool.submit(()->{gate.await();return second.postJson(f.roomPath()+"/draft",update);});
+            gate.countDown();assertThat(List.of(a.get().statusCode(),b.get().statusCode())).containsExactlyInAnyOrder(200,409);
+            var publish=json.valueToTree(scores(f.batch,80,90,70));((com.fasterxml.jackson.databind.node.ObjectNode)publish).put("draftVersion",2);
+            var edit=Map.of("version",2,"dimensions",List.of(Map.of("dimensionId",dimension,"value","95")));
+            var start=new java.util.concurrent.CountDownLatch(1);
+            var save=pool.submit(()->{start.await();return f.manager.postJson(f.roomPath()+"/draft",edit);});
+            var submit=pool.submit(()->{start.await();return second.postJson(f.roomPath()+"/score",publish);});
+            start.countDown();var sr=save.get();var pr=submit.get();
+            if(sr.statusCode()==200) {
+                assertThat(pr.statusCode()).isEqualTo(409);assertThat(pr.body()).contains("DRAFT_CHANGED");
+                assertThat(get(f.manager,f.roomPath()+"/draft").path("draft").path("version").asLong()).isEqualTo(3);
+                assertThat(get(f.manager,f.roomPath()).path("score").isNull()).isTrue();
+            } else {
+                assertThat(sr.statusCode()).isEqualTo(409);assertThat(pr.statusCode()).isEqualTo(201);
+                assertThat(get(f.manager,f.roomPath()+"/draft").path("draft").isNull()).isTrue();
+                assertThat(get(f.manager,f.batchPath()).path("inspectedCount").asInt()).isEqualTo(1);
+            }
+        } finally {pool.shutdownNow();}
+    }
+
 }

@@ -20,8 +20,12 @@ public class BatchService {
     private final AccountAccess accounts;
     private final AuditWriter audit;
     private final Clock clock;
-    public BatchService(BatchMapper batches, SchemeMapper schemes, InspectionHousingQuery housing, AccountAccess accounts, AuditWriter audit, Clock clock) {
+    private final DraftMapper drafts;
+    private final com.fasterxml.jackson.databind.ObjectMapper json;
+    public BatchService(BatchMapper batches, SchemeMapper schemes, InspectionHousingQuery housing, AccountAccess accounts, AuditWriter audit, Clock clock,
+            DraftMapper drafts, com.fasterxml.jackson.databind.ObjectMapper json) {
         this.batches=batches; this.schemes=schemes; this.housing=housing; this.accounts=accounts; this.audit=audit; this.clock=clock;
+        this.drafts=drafts; this.json=json;
     }
     @Transactional(readOnly = true)
     public Current current() {
@@ -67,6 +71,8 @@ public class BatchService {
         var room=requireRoom(id,roomId);
         if(room.scoreId()!=null) throw alreadyScored();
         var dimensions=schemes.dimensions(batch.schemeId());
+        var draft=drafts.find(actor.id(),id,roomId);
+        if(input.draftVersion()!=null && input.draftVersion()!=(draft==null?0:draft.version())) throw draftConflict();
         var supplied=new java.util.HashMap<Long,Integer>();
         for(var dimension:input.dimensions()) {
             if(supplied.put(dimension.dimensionId(),dimension.score())!=null) throw invalidDimensions();
@@ -80,6 +86,7 @@ public class BatchService {
         long scoreId=batches.insertedId();
         for(var dimension:dimensions) batches.insertScoreDimension(scoreId,dimension.id(),dimension.name(),dimension.weight(),supplied.get(dimension.id()),dimension.sortOrder());
         var result=score(id,roomId);
+        drafts.clear(actor.id(),id,roomId);
         audit.record(actor.id(),"SCORE_SUBMITTED","SCORE",scoreId,null,result);
         return result;
     }
@@ -87,6 +94,47 @@ public class BatchService {
         var result=batches.score(id,roomId);
         return result==null?null:new Score(result,batches.scoreDimensions(result.id()));
     }
+    @Transactional(readOnly = true)
+    public DraftDtos.Page drafts(AccountPrincipal actor, int page, int size) {
+        if(page<1 || size<1 || size>100) throw new ApiException(HttpStatus.BAD_REQUEST,"INVALID_QUERY","页码至少为1，每页1–100条");
+        return new DraftDtos.Page(drafts.list(actor.id(),size,(long)(page-1)*size).stream().map(this::draftView).toList(),drafts.count(actor.id()),page,size);
+    }
+    @Transactional(readOnly = true)
+    public DraftDtos.Draft draft(AccountPrincipal actor, long id, long roomId) {
+        require(id);
+        return draftView(drafts.find(actor.id(),id,roomId));
+    }
+    @Transactional
+    public DraftDtos.Draft saveDraft(AccountPrincipal actor, long id, long roomId, DraftDtos.Save input) {
+        accounts.lockBusinessActor(actor,Role.DORM_MANAGER);
+        var batch=require(id);var now=clock.instant();
+        if(batch.status()!=Status.OPEN || !batch.weekStart().equals(Week.at(now).weekStart()))
+            throw new ApiException(HttpStatus.CONFLICT,"BATCH_NOT_OPEN","仅当前周开放批次允许暂存，请保留输入并核对批次");
+        var room=requireRoom(id,roomId);
+        if(room.scoreId()!=null) throw alreadyScored();
+        var before=drafts.find(actor.id(),id,roomId);
+        if(input.version()!=(before==null?0:before.version())) throw draftConflict();
+        var allowed=schemes.dimensions(batch.schemeId()).stream().map(SchemeViews.Dimension::id).collect(java.util.stream.Collectors.toSet());
+        var seen=new java.util.HashSet<Long>();
+        for(var value:input.dimensions()) if(!allowed.contains(value.dimensionId()) || !seen.add(value.dimensionId()))
+            throw new ApiException(HttpStatus.BAD_REQUEST,"INVALID_DIMENSIONS","草稿仅可包含本批次方案的维度，不能重复");
+        try { drafts.save(actor.id(),id,roomId,room.buildingName(),room.roomNo(),json.writeValueAsString(input.dimensions()),now); }
+        catch(com.fasterxml.jackson.core.JsonProcessingException failure) { throw new IllegalStateException("Cannot encode draft",failure); }
+        var saved=draftView(drafts.find(actor.id(),id,roomId));
+        // Audit identifies the change without exposing private draft input to future audit viewers.
+        audit.record(actor.id(),"SCORE_DRAFT_SAVED","BATCH",id,
+                before==null?null:java.util.Map.of("roomId",roomId,"version",before.version()),
+                java.util.Map.of("roomId",roomId,"version",saved.version()));
+        return saved;
+    }
+    private DraftDtos.Draft draftView(DraftDtos.Row row) {
+        if(row==null) return null;
+        try {
+            var values=json.readValue(row.dimensions(),new com.fasterxml.jackson.core.type.TypeReference<java.util.List<DraftDtos.Value>>() {});
+            return new DraftDtos.Draft(row.batchId(),row.roomId(),row.buildingName(),row.roomNo(),row.isoYear(),row.isoWeek(),row.status(),row.version(),row.updatedAt(),values);
+        } catch(com.fasterxml.jackson.core.JsonProcessingException failure) { throw new IllegalStateException("Cannot decode draft",failure); }
+    }
+    private ApiException draftConflict() { return new ApiException(HttpStatus.CONFLICT,"DRAFT_CHANGED","个人草稿已在另一窗口更新，请保留输入并核对最新草稿"); }
     private Room requireRoom(long id, long roomId) {
         var room=batches.room(id,roomId);
         if(room==null) throw new ApiException(HttpStatus.NOT_FOUND,"NOT_EXPECTED_ROOM","该寝室不在本批次应检名单中");

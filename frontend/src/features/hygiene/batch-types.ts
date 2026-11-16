@@ -15,3 +15,9 @@ export interface FormalScore {
 }
 export interface InspectionDetail { room: InspectionRoom; score: FormalScore | null }
 export const batchStatuses = { OPEN: '开放', CLOSED: '关闭', SUSPENDED: '停检' }
+
+export interface PersonalDraft {
+  batchId: number; roomId: number; buildingName: string; roomNo: string; isoYear: number; isoWeek: number
+  status: Batch['status']; version: number; updatedAt: string; dimensions: { dimensionId: number; value: string }[]
+}
+export interface DraftPage { items: PersonalDraft[]; total: number; page: number; size: number }

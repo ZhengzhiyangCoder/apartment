@@ -176,3 +176,22 @@ status为OPEN/CLOSED/SUSPENDED；08创建OPEN，不提供管理状态入口。sc
 正式结果含id/batchId/roomId/totalScore/threshold/submittedBy/submittedAt/dimensions；明细为dimensionId/name/weight/score/sortOrder的提交快照。评分、明细与SCORE_SUBMITTED审计同事务；批次、名单与BATCH_PREPARED审计同事务。审计target_type分别为SCORE/BATCH，记录实际操作者和白名单快照；失败均回滚。不存在删除或无痕更改入口。
 
 开放批次中有未检查寝室时，相关寝室与楼栋停用409 UNFINISHED_INSPECTION（已有入住/报修保护优先）；即使已退宿仍不能绕过。已评分不阻止停用且历史保留；应检不绑定某个床位或个人，不把这项保护扩张到已退宿学生/床位。旧周未处理名单仍受保护，后续由10显式处理批次/名单。学生与维修人员不能访问本管理接口；系统管理员不能冒充宿管提交。
+
+
+## 连续评分与个人草稿（任务09）
+
+| 方法与路径 | 输入 | 权限与返回 |
+|---|---|---|
+| GET /api/hygiene/drafts | page/size | 仅宿管本人；跨批次items/total/page/size，默认10、最多100条 |
+| GET /api/hygiene/batches/{id}/rooms/{roomId}/draft | 批次和寝室id | 仅宿管本人；{draft}，无本人草稿时null |
+| POST /api/hygiene/batches/{id}/rooms/{roomId}/draft | version/dimensions:[{dimensionId,value}]；CSRF | 仅宿管本人；200保存后的草稿 |
+
+所有者从Session取得，客户端不能指定或切换所有者。系统管理员、学生和维修人员不能读写草稿。列表按updatedAt倒序、batchId倒序、roomId升序稳定分页，包含旧周和关闭/停检批次，不隐式写入。草稿返回batchId/roomId/buildingName/roomNo/isoYear/isoWeek/status/version/updatedAt/dimensions，不返回其他人的输入。
+
+草稿允许0–20项本方案维度的原始字符串value，每项最多4字符、可为空；用于中断时保留未填完或待修正的分值，不进行正式分数计算。维度不可重复或来自其他方案。version首次传0，之后传上次服务端版本；过期409 DRAFT_CHANGED，保留当前输入，核对最新草稿后由用户显式载入。暂存限当前周开放批次、名单内且未正式评分的寝室；非当前开放409 BATCH_NOT_OPEN，名单外404 NOT_EXPECTED_ROOM，已评分409 ALREADY_SCORED。历史草稿仍可读取，不能通过草稿接口发布。
+
+转正式仍调用任务08的score接口，重新校验批次、名单、方案维度、全部0–100整数与唯一正式记录。可携带draftVersion（非负整数；页面始终携带，无草稿为0）校验本人当前草稿版本，避免旧窗口误清理更新后的草稿；省略时兼容08直接录分调用。成功后在评分、明细、审计同一事务中删除该录入人/批次/寝室的草稿；其他人的草稿保留。校验、竞争、明细、审计或清理失败均不产生部分正式结果，也不删已有草稿。草稿不参与任何正式成绩或已检计数。
+
+页面“保存并下一间”只在score响应201后查询当前已应用楼栋/关键词范围内第一间未检寝室，采用既有稳定楼栋/房号顺序，跨分页、跨楼栋。请求期间锁定按钮。提交失败保留输入且不切换；已保存而下一间查询失败时明确区分，可“继续下一间”，不重发上一间评分。没有剩余寝室时显示范围已全部检查。
+
+SCORE_DRAFT_SAVED审计与暂存同事务，target_type=BATCH；仅记录roomId及前后version，不复制个人分值，避免未来审计查询泄漏草稿。正式成功沿用SCORE_SUBMITTED。10须通过真实状态管理回归关闭/停检只读、名单移除后仍可核对草稿、历史补录授权，09没有添加绕过批次状态的接口。

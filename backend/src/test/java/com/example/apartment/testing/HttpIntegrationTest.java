@@ -37,6 +37,7 @@ public abstract class HttpIntegrationTest {
             assertThat(connection.getMetaData().getDatabaseProductName()).isEqualTo("MySQL");
         }
         jdbc.update("DELETE FROM operation_log");
+        jdbc.update("DELETE FROM hygiene_score_draft");
         jdbc.update("DELETE FROM hygiene_score_dimension");
         jdbc.update("DELETE FROM hygiene_score");
         jdbc.update("DELETE FROM hygiene_batch_room");

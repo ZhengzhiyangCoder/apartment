@@ -4,7 +4,7 @@ import { useRouter } from 'vue-router'
 import { ElButton, ElDialog, ElInput } from 'element-plus'
 import { HttpError, request, write } from '../../lib/http'
 import { currentUser, handleAuthorizationFailure } from '../identity/session'
-import { batchStatuses, type Batch, type CurrentBatch, type InspectionPage, type InspectionDetail, type FormalScore } from './batch-types'
+import { batchStatuses, type Batch, type CurrentBatch, type InspectionPage, type InspectionDetail, type FormalScore, type PersonalDraft, type DraftPage } from './batch-types'
 
 const router = useRouter(), isManager = computed(() => currentUser.value?.role === 'DORM_MANAGER')
 const current = ref<CurrentBatch | null>(null), loading = ref(false), error = ref(''), success = ref('')
@@ -15,6 +15,10 @@ const prepareOpen = ref(false), preparing = ref(false), prepareError = ref('')
 const entryOpen = ref(false), entryLoading = ref(false), saving = ref(false), entryError = ref(''), blocked = ref(false)
 const entryBatch = ref<Batch | null>(null), entry = ref<InspectionDetail | null>(null), entryId = ref(0), batchId = ref(0)
 const values = ref<Record<number, string>>({}), preserveInput = ref(false)
+const draft = ref<PersonalDraft | null>(null), draftVersion = ref(0), draftLoaded = ref(false), entryNotice = ref('')
+const draftPage = ref<DraftPage>({ items: [], total: 0, page: 1, size: 10 }), draftsLoading = ref(false), draftsError = ref('')
+const appliedScope = ref({ q: '', buildingId: '' }), entryScope = ref({ q: '', buildingId: '' }), nextReady = ref(false)
+const draftPages = computed(() => Math.max(1, Math.ceil(draftPage.value.total / draftPage.value.size)))
 const authorize = (failure: unknown) => handleAuthorizationFailure(failure, router)
 const message = (failure: unknown) => failure instanceof Error ? failure.message : '服务暂时不可用，请重试'
 const decimal = (value: number) => Number(value).toFixed(2)
@@ -42,7 +46,7 @@ async function load(page = 1) {
       if (page > last) { params.set('page', String(last)); rows = await request<InspectionPage>(`/api/hygiene/batches/${data.batch.id}/rooms?${params}`) }
       result.value = rows
     }
-    current.value = data
+    current.value = data; appliedScope.value = { q: query.q, buildingId: query.buildingId }
   } catch (failure) { if (!await authorize(failure)) error.value = message(failure) }
   finally { loading.value = false }
 }
@@ -55,47 +59,109 @@ async function prepare() {
   } catch (failure) { if (!await authorize(failure)) prepareError.value = message(failure) }
   finally { preparing.value = false }
 }
-async function openRoom(id: number) {
-  if (!current.value?.batch || entryLoading.value) return
-  entryId.value = id; batchId.value = current.value.batch.id; entryOpen.value = true; values.value = {}; preserveInput.value = false
+async function loadDrafts(page = draftPage.value.page) {
+  if (!isManager.value || draftsLoading.value) return
+  draftsLoading.value = true; draftsError.value = ''
+  try {
+    let data = await request<DraftPage>(`/api/hygiene/drafts?page=${page}&size=10`)
+    const last = Math.max(1, Math.ceil(data.total / data.size))
+    if (page > last) data = await request<DraftPage>(`/api/hygiene/drafts?page=${last}&size=10`)
+    draftPage.value = data
+  } catch (failure) { if (!await authorize(failure)) draftsError.value = message(failure) }
+  finally { draftsLoading.value = false }
+}
+function restoreDraft() {
+  values.value = {}
+  for (const d of entryBatch.value?.dimensions ?? []) values.value[d.id] = ''
+  for (const d of draft.value?.dimensions ?? []) values.value[d.dimensionId] = d.value
+  draftVersion.value = draft.value?.version ?? 0; draftLoaded.value = true; blocked.value = false
+  preserveInput.value = draft.value !== null
+  entryNotice.value = draft.value ? '已恢复本人服务端草稿。' : ''
+}
+async function openRoom(id: number, targetBatch = current.value?.batch?.id) {
+  if (!targetBatch || entryLoading.value || saving.value) return
+  entryId.value = id; batchId.value = targetBatch; entryOpen.value = true; values.value = {}; preserveInput.value = false
+  draft.value = null; draftVersion.value = 0; draftLoaded.value = false; entryNotice.value = ''; nextReady.value = false
+  entryScope.value = { ...appliedScope.value }
   await refreshEntry()
 }
 async function refreshEntry() {
-  if (entryLoading.value || saving.value) return
+  if (entryLoading.value) return
   entryLoading.value = true; entryError.value = ''; blocked.value = false; entry.value = null; entryBatch.value = null
   try {
-    const [batch, detail] = await Promise.all([
+    const [batch, detail, personal] = await Promise.all([
       request<Batch>(`/api/hygiene/batches/${batchId.value}`),
       request<InspectionDetail>(`/api/hygiene/batches/${batchId.value}/rooms/${entryId.value}`),
+      isManager.value ? request<{ draft: PersonalDraft | null }>(`/api/hygiene/batches/${batchId.value}/rooms/${entryId.value}/draft`) : Promise.resolve({ draft: null }),
     ])
-    entryBatch.value = batch; entry.value = detail
+    entryBatch.value = batch; entry.value = detail; draft.value = personal.draft
+    if (!draftLoaded.value) restoreDraft()
     if (current.value?.batch?.id === batch.id) current.value.batch = batch
     for (const dimension of batch.dimensions) values.value[dimension.id] ??= ''
     if (!batch.scoringAllowed && !detail.score) entryError.value = '该批次当前不可录分。已输入分值仍保留，请返回刷新本周。'
+    if (isManager.value && !detail.score && draftVersion.value !== (draft.value?.version ?? 0)) {
+      blocked.value = true; entryError.value = '个人草稿已在另一窗口更新，当前输入仍保留。请核对后载入服务端草稿。'
+    }
   } catch (failure) { if (!await authorize(failure)) entryError.value = message(failure) }
   finally { entryLoading.value = false }
 }
-async function submit() {
+async function saveDraft() {
   if (!canSubmit.value || !entryBatch.value || saving.value || entryLoading.value) return
-  entryError.value = ''; preserveInput.value = true
+  saving.value = true; entryError.value = ''; entryNotice.value = ''; preserveInput.value = true
+  try {
+    const dimensions = entryBatch.value.dimensions.map(d => ({ dimensionId: d.id, value: values.value[d.id] ?? '' }))
+    draft.value = await write<PersonalDraft>(`/api/hygiene/batches/${batchId.value}/rooms/${entryId.value}/draft`, JSON.stringify({ version: draftVersion.value, dimensions }), 'application/json')
+    draftVersion.value = draft.value.version; entryNotice.value = '个人草稿已保存，重新登录后可恢复；尚未计入检查进度。'
+    await loadDrafts()
+  } catch (failure) { await entryFailure(failure) }
+  finally { saving.value = false }
+}
+async function entryFailure(failure: unknown) {
+  if (!await authorize(failure)) {
+    entryError.value = message(failure)
+    if (failure instanceof HttpError && [404, 409].includes(failure.status)) blocked.value = true
+  }
+}
+async function advanceNext() {
+  // Always query the server after a confirmed save; never derive the queue from a stale page.
+  const params = new URLSearchParams({ q: entryScope.value.q, inspected: 'false', page: '1', size: '1' })
+  if (entryScope.value.buildingId) params.set('buildingId', entryScope.value.buildingId)
+  try {
+    const next = await request<InspectionPage>(`/api/hygiene/batches/${batchId.value}/rooms?${params}`)
+    if (!next.items.length) { entryOpen.value = false; nextReady.value = false; success.value += ' 当前筛选范围已全部检查。'; return }
+    entryId.value = next.items[0]!.roomId; values.value = {}; preserveInput.value = false; draftLoaded.value = false
+    draft.value = null; draftVersion.value = 0; entryNotice.value = ''; nextReady.value = false
+    await refreshEntry()
+  } catch (failure) {
+    if (!await authorize(failure)) entryError.value = `正式评分已保存，下一间暂未载入：${message(failure)}`
+  }
+}
+async function continueNext() {
+  if (saving.value || entryLoading.value) return
+  saving.value = true; entryError.value = ''
+  try { await advanceNext() } finally { saving.value = false }
+}
+async function submit(next = false) {
+  if (!canSubmit.value || !entryBatch.value || saving.value || entryLoading.value) return
+  entryError.value = ''; entryNotice.value = ''; preserveInput.value = true
   if (preview.value === null) { entryError.value = '请为每个维度填写0–100的整数分值。'; return }
   saving.value = true
   try {
     const dimensions = entryBatch.value.dimensions.map(d => ({ dimensionId: d.id, score: Number(values.value[d.id]) }))
-    const saved = await write<FormalScore>(`/api/hygiene/batches/${batchId.value}/rooms/${entryId.value}/score`, JSON.stringify({ dimensions }), 'application/json')
-    entryOpen.value = false; success.value = `正式评分已保存：${decimal(saved.totalScore)}分。`; await load(result.value.page)
-  } catch (failure) {
-    if (!await authorize(failure)) {
-      entryError.value = message(failure)
-      if (failure instanceof HttpError && [404, 409].includes(failure.status)) blocked.value = true
-    }
-  } finally { saving.value = false }
+    const saved = await write<FormalScore>(`/api/hygiene/batches/${batchId.value}/rooms/${entryId.value}/score`, JSON.stringify({ dimensions, draftVersion: draftVersion.value }), 'application/json')
+    entry.value!.score = saved; preserveInput.value = false; draft.value = null; draftVersion.value = 0
+    success.value = `正式评分已保存：${decimal(saved.totalScore)}分。`; nextReady.value = next
+    await load(result.value.page); await loadDrafts()
+    if (next) await advanceNext()
+    else entryOpen.value = false
+  } catch (failure) { await entryFailure(failure) }
+  finally { saving.value = false }
 }
-onMounted(() => load())
+onMounted(() => { void load(); void loadDrafts() })
 </script>
 
 <template>
-  <section class="page-head account-heading"><div><p class="eyebrow">HYGIENE / 每周检查</p><h1>本周卫生检查</h1><p class="subtitle">{{ isManager ? '按本周固定名单检查寝室，提交后保留评分依据。' : '准备全校检查名单，查看宿管部已检与未检进度。' }}</p></div><ElButton :disabled="loading || preparing" @click="load(result.page)">刷新本周</ElButton></section>
+  <section class="page-head account-heading"><div><p class="eyebrow">HYGIENE / 每周检查</p><h1>本周卫生检查</h1><p class="subtitle">{{ isManager ? '按本周固定名单检查寝室，可暂存草稿或跨楼栋连续评分。' : '准备全校检查名单，查看宿管部已检与未检进度。' }}</p></div><ElButton :disabled="loading || preparing" @click="load(result.page)">刷新本周</ElButton></section>
   <p v-if="error" class="message error" role="alert">{{ error }} <button class="text-button" @click="load()">重新加载</button></p>
   <p v-if="success" class="message success" role="status">{{ success }}</p>
   <section v-if="loading" class="card account-card" role="status">正在读取本周检查…</section>
@@ -114,6 +180,12 @@ onMounted(() => load())
       </section>
     </template>
   </template>
+  <section v-if="isManager" class="card account-card" data-testid="personal-drafts">
+    <div class="page-head"><div><h2>我的评分草稿</h2><p class="form-hint">仅本人可见，包含历史批次；草稿不计正式成绩和检查进度。</p></div><ElButton :disabled="draftsLoading" @click="loadDrafts()">刷新草稿</ElButton></div>
+    <p v-if="draftsLoading" role="status">正在读取个人草稿…</p>
+    <p v-else-if="draftsError" class="message error" role="alert">{{ draftsError }}</p>
+    <template v-else><div class="account-table-wrap"><table v-if="draftPage.items.length" class="account-table"><caption class="sr-only">个人评分草稿</caption><thead><tr><th>寝室</th><th>批次</th><th>暂存时间</th><th>操作</th></tr></thead><tbody><tr v-for="item in draftPage.items" :key="`${item.batchId}-${item.roomId}`"><td>{{ item.buildingName }} · {{ item.roomNo }}</td><td>{{ item.isoYear }}年第{{ item.isoWeek }}周 · {{ batchStatuses[item.status] }}</td><td>{{ time(item.updatedAt) }}</td><td><ElButton :disabled="entryLoading || saving" @click="openRoom(item.roomId, item.batchId)">恢复草稿</ElButton></td></tr></tbody></table><p v-else class="account-empty">暂无个人草稿。</p></div><div class="account-pagination"><span>共 {{ draftPage.total }} 份草稿</span><div><ElButton :disabled="draftPage.page <= 1" @click="loadDrafts(draftPage.page - 1)">上一页草稿</ElButton><span>{{ draftPage.page }} / {{ draftPages }}</span><ElButton :disabled="draftPage.page >= draftPages" @click="loadDrafts(draftPage.page + 1)">下一页草稿</ElButton></div></div></template>
+  </section>
   <ElDialog v-model="prepareOpen" title="准备本周检查" width="560px" class="account-dialog" :close-on-click-modal="false" :close-on-press-escape="!preparing" :show-close="!preparing" destroy-on-close>
     <p>将固定当前启用且有学生入住的应检寝室，并绑定当前启用评分标准。</p><p class="form-hint">本周已有批次时直接进入，不重复创建。请先核对入住资料与评分方案。</p><p v-if="prepareError" class="message error" role="alert">{{ prepareError }}</p><div class="form-actions"><ElButton :disabled="preparing" :loading="preparing" @click="prepare">确认准备本周</ElButton><ElButton :disabled="preparing" @click="prepareOpen = false">返回</ElButton></div>
   </ElDialog>
@@ -122,8 +194,12 @@ onMounted(() => load())
     <template v-if="entry && entryBatch"><div class="repair-detail-head"><h2>{{ entry.room.buildingName }} · {{ entry.room.roomNo }}</h2><span class="account-status">{{ entry.score ? '已检查' : '未检查' }}</span></div><p class="form-hint">{{ entryBatch.isoYear }}年第{{ entryBatch.isoWeek }}周 · 归属日 {{ entryBatch.weekStart }}<br />标准 #{{ entryBatch.schemeId }} · {{ entryBatch.schemeName }} · 阈值 {{ decimal(entryBatch.threshold) }}分</p>
       <template v-if="entry.score"><p class="inspection-saved">正式得分 <strong>{{ decimal(entry.score.totalScore) }}</strong>分</p><p class="form-hint">实际提交：{{ time(entry.score.submittedAt) }}（上海时间） · 记录 #{{ entry.score.id }}</p><table class="account-table"><caption class="sr-only">正式评分依据</caption><thead><tr><th>维度</th><th>权重</th><th>分值</th></tr></thead><tbody><tr v-for="d in entry.score.dimensions" :key="d.dimensionId"><td>{{ d.name }}</td><td>{{ decimal(d.weight) }}%</td><td>{{ d.score }}</td></tr></tbody></table></template>
       <template v-else-if="!isManager"><p class="form-hint">该寝室尚未检查，由宿舍管理员提交正式评分。</p><p v-for="d in entryBatch.dimensions" :key="d.id">{{ d.name }} · {{ decimal(d.weight) }}%</p></template>
-      <form v-if="isManager && (!entry.score || preserveInput)" class="form-stack" @submit.prevent="submit"><p v-if="entry.score" class="form-hint">以下为本次未提交输入，已保留供核对；正式结果以上方为准。</p><div v-for="d in entryBatch.dimensions" :key="d.id" class="inspection-dimension"><div><b>{{ d.name }}</b><span class="account-name">权重 {{ decimal(d.weight) }}%</span></div><div class="field"><label :for="`inspection-value-${d.id}`">{{ d.name }}分值</label><ElInput :id="`inspection-value-${d.id}`" v-model="values[d.id]" inputmode="numeric" maxlength="4" placeholder="0–100整数" :disabled="saving || !canSubmit" /></div></div><p class="inspection-preview" data-testid="score-preview">综合分预览：<strong>{{ preview === null ? '请填写全部整数分值' : decimal(preview) }}</strong></p><p class="form-hint">提交后记为正式检查；同一寝室本周只能提交一份正式评分。</p><ElButton v-if="canSubmit" native-type="submit" :disabled="saving || entryLoading" :loading="saving">提交正式评分</ElButton></form>
+      <form v-if="isManager && (!entry.score || preserveInput)" class="form-stack" @submit.prevent="submit(false)"><p v-if="entry.score" class="form-hint">以下为本次未提交输入，已保留供核对；正式结果以上方为准。</p><div v-for="d in entryBatch.dimensions" :key="d.id" class="inspection-dimension"><div><b>{{ d.name }}</b><span class="account-name">权重 {{ decimal(d.weight) }}%</span></div><div class="field"><label :for="`inspection-value-${d.id}`">{{ d.name }}分值</label><ElInput :id="`inspection-value-${d.id}`" v-model="values[d.id]" inputmode="numeric" maxlength="4" placeholder="0–100整数" :disabled="saving || !canSubmit" /></div></div><p class="inspection-preview" data-testid="score-preview">综合分预览：<strong>{{ preview === null ? '请填写全部整数分值' : decimal(preview) }}</strong></p><p class="form-hint">提交后记为正式检查；同一寝室本周只能提交一份正式评分。</p><div v-if="canSubmit" class="form-actions"><ElButton native-type="submit" :disabled="saving || entryLoading" :loading="saving">提交正式评分</ElButton><ElButton :disabled="saving || entryLoading" @click="submit(true)">保存并下一间</ElButton><ElButton :disabled="saving || entryLoading" @click="saveDraft">暂存个人草稿</ElButton></div></form>
     </template>
+    <p v-if="entryNotice" class="message success" role="status">{{ entryNotice }}</p>
+    <p v-if="draft" class="form-hint">本人草稿：{{ time(draft.updatedAt) }} · 版本 {{ draft.version }}</p>
+    <div v-if="draft && draftVersion !== draft.version" class="message"><p>服务端草稿：<span v-for="d in draft.dimensions" :key="d.dimensionId">{{ entryBatch?.dimensions.find(item => item.id === d.dimensionId)?.name }} {{ d.value || '未填' }}；</span></p><ElButton :disabled="saving || entryLoading" @click="restoreDraft(); entryError = ''">载入服务端草稿（替换输入）</ElButton></div>
+    <ElButton v-if="nextReady" :disabled="saving || entryLoading" @click="continueNext">继续下一间</ElButton>
     <p v-if="entryError" class="message error" role="alert">{{ entryError }}</p><div class="form-actions"><ElButton v-if="entryError" :disabled="entryLoading || saving" @click="refreshEntry">核对最新状态（保留输入）</ElButton><ElButton :disabled="saving" @click="entryOpen = false">返回</ElButton></div>
   </ElDialog>
 </template>

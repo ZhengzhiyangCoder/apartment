@@ -169,3 +169,192 @@ test('全校楼栋筛选、分页末页评分后回退及非管理角色直访�
     finally { await context.close() }
   }
 })
+
+async function fillScore(page: Page, values = ['80', '90', '70']) {
+  const form = page.getByRole('dialog', { name: '寝室正式评分', exact: true })
+  for (const [i, value] of values.entries()) await form.getByLabel(`${['地面', '摆放', '整洁'][i]}分值`, { exact: true }).fill(value)
+  return form
+}
+
+test('个人草稿重登恢复，保存并下一间按A101→A102→B201跨楼栋连续完成', async ({ page }) => {
+  await fixtures(page); await post(page, '/api/hygiene/batches/current/prepare', {}, 200)
+  await page.getByRole('button', { name: '退出登录', exact: true }).click(); await expect(page).toHaveURL(/\/login$/)
+  await login(page, 'dorm_manager'); await page.goto('/inspections')
+  await page.getByRole('row').filter({ hasText: 'A101' }).getByRole('button', { name: '录入评分', exact: true }).click()
+  const form = await fillScore(page, ['80', '', '70'])
+  await form.getByRole('button', { name: '暂存个人草稿', exact: true }).click()
+  await expect(form.getByRole('status')).toContainText('个人草稿已保存')
+  await expect(page.getByTestId('batch-progress')).toContainText('0 / 3')
+  await form.getByRole('button', { name: '返回', exact: true }).click()
+  await page.getByRole('button', { name: '退出登录', exact: true }).click(); await expect(page).toHaveURL(/\/login$/)
+  await login(page, 'dorm_manager'); await page.goto('/inspections')
+  await page.getByTestId('personal-drafts').getByRole('button', { name: '恢复草稿', exact: true }).click()
+  await expect(form.getByLabel('地面分值', { exact: true })).toHaveValue('80')
+  await expect(form.getByLabel('摆放分值', { exact: true })).toHaveValue('')
+  await expect(form.getByLabel('整洁分值', { exact: true })).toHaveValue('70')
+  await page.screenshot({ animations: 'disabled', path: `../output/playwright/task09-draft-${page.viewportSize()!.width}.png` })
+  for (const [index, number] of ['A101', 'A102', 'B201'].entries()) {
+    await expect(form.getByRole('heading', { name: / · / })).toContainText(number)
+    await fillScore(page)
+    await form.getByRole('button', { name: '保存并下一间', exact: true }).click()
+    if (index < 2) await expect(form.getByRole('heading', { name: / · / })).toContainText(['A102', 'B201'][index]!)
+  }
+  await expect(form).not.toBeVisible()
+  await expect(page.getByRole('status')).toContainText('当前筛选范围已全部检查')
+  await expect(page.getByTestId('batch-progress')).toContainText('3 / 3')
+  expect((await (await page.request.get('/api/hygiene/drafts')).json()).total).toBe(0)
+  const batch = (await (await page.request.get('/api/hygiene/batches/current')).json()).batch
+  const rows = (await (await page.request.get(`/api/hygiene/batches/${batch.id}/rooms?inspected=true`)).json()).items
+  expect(rows.map((r: { roomNo: string; totalScore: number }) => [r.roomNo, Number(r.totalScore)])).toEqual([['A101', 80], ['A102', 80], ['B201', 80]])
+  await page.screenshot({ animations: 'disabled', path: `../output/playwright/task09-complete-${page.viewportSize()!.width}.png`, fullPage: true })
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBeTruthy()
+})
+
+test('连续提交的校验、网络和服务器失败保留草稿与输入，请求中不能重复点击', async ({ page }) => {
+  await fixtures(page); await post(page, '/api/hygiene/batches/current/prepare', {}, 200)
+  await page.getByRole('button', { name: '退出登录', exact: true }).click(); await expect(page).toHaveURL(/\/login$/)
+  await login(page, 'dorm_manager'); await page.goto('/inspections')
+  await page.getByRole('row').filter({ hasText: 'A101' }).getByRole('button', { name: '录入评分', exact: true }).click()
+  const form = await fillScore(page, ['80.5', '90', '70'])
+  await form.getByRole('button', { name: '暂存个人草稿', exact: true }).click()
+  await expect(form.getByRole('status')).toContainText('个人草稿已保存')
+  const batch = (await (await page.request.get('/api/hygiene/batches/current')).json()).batch
+  const room = (await (await page.request.get(`/api/hygiene/batches/${batch.id}/rooms?q=A101`)).json()).items[0]
+  const path = `/api/hygiene/batches/${batch.id}/rooms/${room.roomId}`
+  const draft = (await (await page.request.get(`${path}/draft`)).json()).draft
+  await form.getByRole('button', { name: '保存并下一间', exact: true }).click()
+  await expect(form.getByRole('alert')).toContainText('0–100的整数')
+  await fillScore(page)
+  const pattern = '**/api/hygiene/batches/*/rooms/*/score'
+  for (const failure of ['network', 'server']) {
+    await page.route(pattern, route => failure === 'network' ? route.abort('failed') : route.fulfill({ status: 500, contentType: 'application/json', body: JSON.stringify({ code: 'SERVER_ERROR', message: '服务暂时不可用，请稍后重试' }) }))
+    await form.getByRole('button', { name: '保存并下一间', exact: true }).click()
+    await expect(form.getByRole('alert')).toContainText(failure === 'network' ? '暂时无法连接服务' : '服务暂时不可用')
+    await expect(form.getByRole('heading', { name: / · / })).toContainText('A101')
+    await expect(form.getByLabel('地面分值', { exact: true })).toHaveValue('80')
+    expect((await (await page.request.get(`${path}/draft`)).json()).draft).toEqual(draft)
+    expect((await (await page.request.get(path)).json()).score).toBeNull()
+    await page.unroute(pattern)
+  }
+  await page.screenshot({ animations: 'disabled', path: `../output/playwright/task09-submit-failure-${page.viewportSize()!.width}.png` })
+  let release!: () => void
+  const gate = new Promise<void>(resolve => { release = resolve })
+  let requests = 0
+  await page.route(pattern, async route => { requests++; await gate; await route.continue() })
+  await form.getByRole('button', { name: '保存并下一间', exact: true }).click()
+  await expect.poll(() => requests).toBe(1)
+  await expect(form.getByRole('button', { name: '保存并下一间', exact: true })).toBeDisabled()
+  await expect(form.getByRole('button', { name: '暂存个人草稿', exact: true })).toBeDisabled()
+  await expect(form.getByRole('button', { name: '返回', exact: true })).toBeDisabled()
+  release()
+  await expect(form.getByRole('heading', { name: / · / })).toContainText('A102')
+  expect(requests).toBe(1)
+  expect((await (await page.request.get(`${path}/draft`)).json()).draft).toBeNull()
+  expect(Number((await (await page.request.get(path)).json()).score.totalScore)).toBe(80)
+})
+
+test('两名宿管草稿相互隔离，另一人先提交后冲突不跳间且重登仍可核对草稿', async ({ page, browser }) => {
+  await fixtures(page); await post(page, '/api/hygiene/batches/current/prepare', {}, 200)
+  await post(page, '/api/identity/accounts', { username: 'other_manager', displayName: '模拟另一宿管', role: 'DORM_MANAGER', password: 'DemoPass2026!' })
+  await page.getByRole('button', { name: '退出登录', exact: true }).click(); await expect(page).toHaveURL(/\/login$/)
+  await login(page, 'dorm_manager'); await page.goto('/inspections')
+  const context = await browser.newContext({ viewport: page.viewportSize()! }); const other = await context.newPage()
+  try {
+    await login(other, 'other_manager'); await other.goto('/inspections')
+    for (const actor of [page, other]) {
+      await actor.getByRole('row').filter({ hasText: 'A101' }).getByRole('button', { name: '录入评分', exact: true }).click()
+      const form = await fillScore(actor, actor === page ? ['80', '90', '70'] : ['95', '95', '95'])
+      await form.getByRole('button', { name: '暂存个人草稿', exact: true }).click()
+      await expect(form.getByRole('status')).toContainText('个人草稿已保存')
+    }
+    const otherForm = other.getByRole('dialog', { name: '寝室正式评分', exact: true })
+    await otherForm.getByRole('button', { name: '提交正式评分', exact: true }).click(); await expect(otherForm).not.toBeVisible()
+    const form = page.getByRole('dialog', { name: '寝室正式评分', exact: true })
+    await form.getByRole('button', { name: '保存并下一间', exact: true }).click()
+    await expect(form.getByRole('alert')).toContainText('已提交正式评分')
+    await expect(form.getByRole('heading', { name: / · / })).toContainText('A101')
+    await expect(form.getByLabel('地面分值', { exact: true })).toHaveValue('80')
+    expect((await (await other.request.get('/api/hygiene/drafts')).json()).total).toBe(0)
+    expect((await (await page.request.get('/api/hygiene/drafts')).json()).total).toBe(1)
+    await form.getByRole('button', { name: '核对最新状态（保留输入）', exact: true }).click()
+    await expect(form.getByText('正式得分', { exact: false })).toContainText('95.00')
+    await expect(form.getByLabel('地面分值', { exact: true })).toHaveValue('80')
+    await page.screenshot({ animations: 'disabled', path: `../output/playwright/task09-conflict-${page.viewportSize()!.width}.png` })
+    await form.getByRole('button', { name: '返回', exact: true }).click()
+    await page.getByRole('button', { name: '退出登录', exact: true }).click(); await expect(page).toHaveURL(/\/login$/)
+    await login(page, 'dorm_manager'); await page.goto('/inspections')
+    await page.getByTestId('personal-drafts').getByRole('button', { name: '恢复草稿', exact: true }).click()
+    await expect(form.getByLabel('地面分值', { exact: true })).toHaveValue('80')
+    await expect(form.getByLabel('地面分值', { exact: true })).toBeDisabled()
+    await expect(form.getByText('正式得分', { exact: false })).toContainText('95.00')
+  } finally { await context.close() }
+})
+
+test('连续队列遵守筛选范围，已保存但下一间查询失败可重试而不重复发布', async ({ page }) => {
+  await fixtures(page); await post(page, '/api/hygiene/batches/current/prepare', {}, 200)
+  await page.getByRole('button', { name: '退出登录', exact: true }).click(); await expect(page).toHaveURL(/\/login$/)
+  await login(page, 'dorm_manager'); await page.goto('/inspections')
+  const building = (await (await page.request.get('/api/housing/buildings')).json()).items.find((b: { name: string }) => b.name === '模拟 A 栋')
+  await page.getByLabel('所属楼栋', { exact: true }).selectOption(String(building.id))
+  await page.getByLabel('搜索应检寝室', { exact: true }).fill('A10')
+  await page.getByRole('button', { name: '查询', exact: true }).click()
+  await expect(page.getByText('共 2 条记录', { exact: true })).toBeVisible()
+  await page.getByRole('row').filter({ hasText: 'A101' }).getByRole('button', { name: '录入评分', exact: true }).click()
+  const form = await fillScore(page)
+  const pattern = '**/api/hygiene/batches/*/rooms?*'
+  await page.route(pattern, route => new URL(route.request().url()).searchParams.get('size') === '1' ? route.abort('failed') : route.continue())
+  await form.getByRole('button', { name: '保存并下一间', exact: true }).click()
+  await expect(form.getByRole('alert')).toContainText('正式评分已保存，下一间暂未载入')
+  await expect(form.getByRole('heading', { name: / · / })).toContainText('A101')
+  await expect(form.getByRole('button', { name: '保存并下一间', exact: true })).toHaveCount(0)
+  await page.unroute(pattern)
+  await form.getByRole('button', { name: '继续下一间', exact: true }).click()
+  await expect(form.getByRole('heading', { name: / · / })).toContainText('A102')
+  await fillScore(page)
+  await form.getByRole('button', { name: '保存并下一间', exact: true }).click(); await expect(form).not.toBeVisible()
+  await expect(page.getByRole('status')).toContainText('当前筛选范围已全部检查')
+  await expect(page.getByTestId('batch-progress')).toContainText('2 / 3')
+  const batch = (await (await page.request.get('/api/hygiene/batches/current')).json()).batch
+  const pending = (await (await page.request.get(`/api/hygiene/batches/${batch.id}/rooms?inspected=false`)).json()).items
+  expect(pending.map((r: { roomNo: string }) => r.roomNo)).toEqual(['B201'])
+})
+
+test('草稿暂存断网保留输入，多窗口版本冲突须显式载入最新草稿', async ({ page }) => {
+  await fixtures(page); await post(page, '/api/hygiene/batches/current/prepare', {}, 200)
+  await page.getByRole('button', { name: '退出登录', exact: true }).click(); await expect(page).toHaveURL(/\/login$/)
+  await login(page, 'dorm_manager'); await page.goto('/inspections')
+  await page.getByRole('row').filter({ hasText: 'A101' }).getByRole('button', { name: '录入评分', exact: true }).click()
+  const form = await fillScore(page)
+  await form.getByRole('button', { name: '暂存个人草稿', exact: true }).click()
+  await expect(form.getByRole('status')).toContainText('个人草稿已保存')
+  await form.getByLabel('地面分值', { exact: true }).fill('70')
+  const pattern = '**/api/hygiene/batches/*/rooms/*/draft'
+  await page.route(pattern, route => route.request().method() === 'POST' ? route.abort('failed') : route.continue())
+  await form.getByRole('button', { name: '暂存个人草稿', exact: true }).click()
+  await expect(form.getByRole('alert')).toContainText('暂时无法连接服务')
+  await expect(form.getByLabel('地面分值', { exact: true })).toHaveValue('70')
+  await page.unroute(pattern)
+  const saved = (await (await page.request.get('/api/hygiene/drafts')).json()).items[0]
+  const path = `/api/hygiene/batches/${saved.batchId}/rooms/${saved.roomId}/draft`
+  await post(page, path, { version: saved.version, dimensions: saved.dimensions.map((d: { dimensionId: number }) => ({ dimensionId: d.dimensionId, value: '95' })) }, 200)
+  await form.getByRole('button', { name: '暂存个人草稿', exact: true }).click()
+  await expect(form.getByRole('alert')).toContainText('另一窗口更新')
+  await form.getByRole('button', { name: '核对最新状态（保留输入）', exact: true }).click()
+  await expect(form.getByLabel('地面分值', { exact: true })).toHaveValue('70')
+  await expect(form.getByLabel('地面分值', { exact: true })).toBeDisabled()
+  await form.getByRole('button', { name: '载入服务端草稿（替换输入）', exact: true }).click()
+  await expect(form.getByLabel('地面分值', { exact: true })).toHaveValue('95')
+  await expect(form.getByLabel('地面分值', { exact: true })).toBeEnabled()
+  await form.getByLabel('地面分值', { exact: true }).fill('96')
+  await form.getByRole('button', { name: '暂存个人草稿', exact: true }).click()
+  await expect(form.getByRole('status')).toContainText('个人草稿已保存')
+  expect((await (await page.request.get(path)).json()).draft.version).toBe(3)
+  await form.getByRole('button', { name: '返回', exact: true }).click()
+  await page.route('**/api/hygiene/drafts?*', route => route.abort('failed'))
+  await page.getByRole('button', { name: '刷新草稿', exact: true }).click()
+  await expect(page.getByTestId('personal-drafts').getByRole('alert')).toContainText('暂时无法连接服务')
+  await expect(page.getByTestId('personal-drafts').getByRole('button', { name: '恢复草稿', exact: true })).toHaveCount(0)
+  await page.unroute('**/api/hygiene/drafts?*'); await page.getByRole('button', { name: '刷新草稿', exact: true }).click()
+  await page.getByTestId('personal-drafts').getByRole('button', { name: '恢复草稿', exact: true }).click()
+  await expect(form.getByLabel('地面分值', { exact: true })).toHaveValue('96')
+})
