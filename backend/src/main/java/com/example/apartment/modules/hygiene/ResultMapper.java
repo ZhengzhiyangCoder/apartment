@@ -10,9 +10,10 @@ import org.apache.ibatis.annotations.*;
 public interface ResultMapper {
     record RankedRoom(long roomId,String roomNo,BigDecimal score,long samples,long rank) {}
     record TrendRow(LocalDate start,BigDecimal score,long samples) {}
+    String VALID_PERIOD = " b.status <> 'SUSPENDED' AND b.week_start >= #{start} AND b.week_start < #{end}";
     String EFFECTIVE = " FROM hygiene_score s JOIN hygiene_batch b ON b.id=s.batch_id"
             + " JOIN hygiene_batch_room r ON r.batch_id=s.batch_id AND r.room_id=s.room_id"
-            + " WHERE b.status <> 'SUSPENDED' AND b.week_start >= #{start} AND b.week_start < #{end}";
+            + " WHERE" + VALID_PERIOD;
     String AVERAGE = "ROUND(AVG(total_score),2)";
     String RANKED = "WITH effective AS (SELECT s.room_id,r.room_no,s.total_score,"
             + " ROW_NUMBER() OVER(PARTITION BY s.room_id ORDER BY b.week_start DESC) AS recent" + EFFECTIVE

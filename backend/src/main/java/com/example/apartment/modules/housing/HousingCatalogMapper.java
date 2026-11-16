@@ -13,6 +13,8 @@ public interface HousingCatalogMapper {
     long countBuildings(String q, Boolean enabled);
     @Select("SELECT id, name, enabled, version FROM dorm_building WHERE id = #{id} FOR UPDATE")
     Building building(long id);
+    @Select("SELECT id, name, enabled, version FROM dorm_building WHERE id = #{id}")
+    Building readBuilding(long id);
     @Insert("INSERT INTO dorm_building(name) VALUES (#{name})")
     void createBuilding(String name);
     @Select("SELECT LAST_INSERT_ID()")
@@ -32,6 +34,8 @@ public interface HousingCatalogMapper {
     long countRooms(String q, Long buildingId, Boolean enabled);
     @Select(ROOM_COLUMNS + ROOM_FROM + " WHERE r.id = #{id} FOR UPDATE")
     Room room(long id);
+    @Select(ROOM_COLUMNS + ROOM_FROM + " WHERE r.id = #{id}")
+    Room readRoom(long id);
     @Insert("INSERT INTO dorm_room(building_id, room_no, floor) VALUES (#{buildingId}, #{roomNo}, #{floor})")
     void createRoom(long buildingId, String roomNo, int floor);
     @Update("UPDATE dorm_room SET room_no = #{roomNo}, floor = #{floor}, version = version + 1 WHERE id = #{id}")
