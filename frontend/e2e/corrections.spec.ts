@@ -48,13 +48,13 @@ test('管理员在关闭批次更正原成绩，保留前后值并联动整改',
     await dialog.getByLabel('更正地面分值',{exact:true}).fill('50');await dialog.getByLabel('更正摆放分值',{exact:true}).fill('50')
     await dialog.getByRole('button',{name:'保存成绩更正',exact:true}).click();await expect(dialog.getByRole('alert')).toContainText('请填写更正原因')
     await dialog.getByLabel('更正原因',{exact:true}).fill('模拟原检查表误录，核对为50分')
-    await dialog.getByRole('button',{name:'保存成绩更正',exact:true}).click();await expect(dialog.getByRole('status')).toContainText('成绩更正已保存')
+    await dialog.getByRole('button',{name:'保存成绩更正',exact:true}).click();await expect(dialog.getByRole('status').filter({hasText:'成绩更正已保存'})).toBeVisible()
     await expect(dialog.getByRole('list',{name:'成绩更正记录',exact:true})).toContainText('80.00 → 50.00')
     const event=(await (await page.request.get('/api/hygiene/rectifications')).json()).items[0]
     await post(manager,`/api/hygiene/rectifications/${event.id}/follow-ups`,{version:event.version,note:'模拟原跟进，必须保留'},200)
     await dialog.getByRole('button',{name:'更正成绩',exact:true}).click();await dialog.getByLabel('更正地面分值',{exact:true}).fill('90');await dialog.getByLabel('更正摆放分值',{exact:true}).fill('90')
     await dialog.getByLabel('更正原因',{exact:true}).fill('模拟复核成绩达标90分')
-    await dialog.getByRole('button',{name:'保存成绩更正',exact:true}).click();await expect(dialog.getByRole('status')).toContainText('成绩更正已保存')
+    await dialog.getByRole('button',{name:'保存成绩更正',exact:true}).click();await expect(dialog.getByRole('status').filter({hasText:'成绩更正已保存'})).toBeVisible()
     await expect(dialog.getByRole('list',{name:'成绩更正记录',exact:true})).toContainText('50.00 → 90.00')
     await dialog.getByText('寝室正式评分',{exact:true}).scrollIntoViewIfNeeded();await page.screenshot({path:`../output/playwright/task14-history-${page.viewportSize()!.width}.png`,fullPage:true,animations:'disabled'})
     expect((await (await page.request.get(`/api/hygiene/scores/${original.id}`)).json()).id).toBe(original.id)
@@ -89,11 +89,11 @@ test('并发与网络失败保留更正输入，核对最新版本后可继续',
     await page.route(`**${path}`,route=>route.abort())
     await dialog.getByRole('button',{name:'核对最新成绩（保留输入）',exact:true}).click();await expect(dialog.getByRole('alert')).toContainText('暂时无法连接服务')
     await expect(dialog.getByLabel('更正地面分值',{exact:true})).toHaveValue('55');await page.unroute(`**${path}`)
-    await dialog.getByRole('button',{name:'核对最新成绩（保留输入）',exact:true}).click();await expect(dialog.getByRole('status')).toContainText('已载入最新成绩')
+    await dialog.getByRole('button',{name:'核对最新成绩（保留输入）',exact:true}).click();await expect(dialog.getByRole('status').filter({hasText:'已载入最新成绩'})).toBeVisible()
     await expect(dialog.getByLabel('更正原因',{exact:true})).toHaveValue('模拟本窗口尚未保存的原因');await expect(dialog.getByLabel('更正摆放分值',{exact:true})).toHaveValue('45')
     await expect(dialog.locator('.inspection-saved')).toContainText('90.00')
     await dialog.getByText('寝室正式评分',{exact:true}).scrollIntoViewIfNeeded();await page.screenshot({path:`../output/playwright/task14-conflict-${page.viewportSize()!.width}.png`,fullPage:true,animations:'disabled'})
-    await dialog.getByRole('button',{name:'保存成绩更正',exact:true}).click();await expect(dialog.getByRole('status')).toContainText('成绩更正已保存')
+    await dialog.getByRole('button',{name:'保存成绩更正',exact:true}).click();await expect(dialog.getByRole('status').filter({hasText:'成绩更正已保存'})).toBeVisible()
     await expect(dialog.locator('.inspection-saved')).toContainText('54.90');await expect(dialog.getByRole('list',{name:'成绩更正记录',exact:true})).toContainText('模拟其他管理员先更新')
     await expect(dialog.getByRole('list',{name:'成绩更正记录',exact:true})).toContainText('模拟本窗口尚未保存的原因')
   } finally {await context.close()}
@@ -110,12 +110,12 @@ test('更正历史失败可重试，分页保留前后值且离开页面后旧�
     await expect(dialog.getByRole('list',{name:'成绩更正记录',exact:true})).toContainText('模拟更正序号11')
     await dialog.getByRole('button',{name:'下一页更正',exact:true}).click();await expect(dialog.getByRole('list',{name:'成绩更正记录',exact:true})).toContainText('模拟更正序号1')
     await expect(dialog.getByRole('button',{name:'下一页更正',exact:true})).toBeDisabled()
-    let release!:()=>void;const gate=new Promise<void>(resolve=>{release=resolve});let started!:()=>void;const pending=new Promise<void>(resolve=>{started=resolve})
-    await page.route(`**${path}?page=1&size=10`,async route=>{const response=await route.fetch();started();await gate;await route.fulfill({response})})
+    let release!:()=>void;const gate=new Promise<void>(resolve=>{release=resolve});let started!:()=>void;const pending=new Promise<void>(resolve=>{started=resolve});let finished!:()=>void;const completed=new Promise<void>(resolve=>{finished=resolve})
+    await page.route(`**${path}?page=1&size=10`,async route=>{const response=await route.fetch();started();await gate;await route.fulfill({response});finished()})
     await dialog.getByRole('button',{name:'上一页更正',exact:true}).click();await pending
     await dialog.getByRole('button',{name:'返回',exact:true}).click()
-    await page.getByRole('link',{name:'个人资料',exact:true}).click();release();await page.unroute(`**${path}?page=1&size=10`)
-    await expect(page.getByRole('heading',{name:'个人资料',exact:true})).toBeVisible();await expect(page.getByRole('list',{name:'成绩更正记录',exact:true})).toHaveCount(0)
+    await page.getByRole('link',{name:'个人资料',exact:true}).click();release();await completed;await page.unroute(`**${path}?page=1&size=10`)
+    await expect(page.getByRole('heading',{name:'认识自己的一方空间',exact:true})).toBeVisible();await expect(page.getByRole('list',{name:'成绩更正记录',exact:true})).toHaveCount(0)
   } finally {await context.close()}
 })
 
@@ -128,12 +128,32 @@ test('更正当前值同步到学生管理页面，停检仍排除且其他角�
     await login(student,'student');await student.goto('/my-results');await expect(student.getByTestId('result-summary')).toContainText('90.00')
     await post(page,`/api/hygiene/batches/${f.batch.id}/state`,{version:0,action:'SUSPEND',reason:'模拟停检排除'},200)
     const dialog=await openResult(page);await dialog.getByRole('button',{name:'更正成绩',exact:true}).click();await dialog.getByLabel('更正地面分值',{exact:true}).fill('70');await dialog.getByLabel('更正摆放分值',{exact:true}).fill('70');await dialog.getByLabel('更正原因',{exact:true}).fill('模拟停检期间继续留痕纠错')
-    await dialog.getByRole('button',{name:'保存成绩更正',exact:true}).click();await expect(dialog.getByRole('status')).toContainText('成绩更正已保存')
-    await student.reload();await expect(student.getByTestId('result-summary')).not.toContainText('70.00');await expect(student.getByText('停检，不计成绩',{exact:true}).first()).toBeVisible()
+    await dialog.getByRole('button',{name:'保存成绩更正',exact:true}).click();await expect(dialog.getByRole('status').filter({hasText:'成绩更正已保存'})).toBeVisible()
+    await student.reload();await expect(student.getByTestId('result-summary')).not.toContainText('70.00');await expect(student.getByRole('table',{name:'周期检查明细',exact:true})).toContainText('停检，不计成绩')
     for(const user of ['student','maintainer']) {
       await login(student,user);await post(student,`/api/hygiene/scores/${score.id}/corrections`,{version:2,reason:'无权更正',dimensions:f.batch.dimensions.map((d:{id:number})=>({dimensionId:d.id,score:10}))},403)
       expect((await student.request.get(`/api/hygiene/scores/${score.id}/corrections`)).status()).toBe(403)
       await student.goto('/inspections');await expect(student).toHaveURL(/\/forbidden$/)
     }
   } finally {await context.close()}
+})
+
+test('保存更正后的列表不会被迟到旧查询覆盖', async ({page,browser}) => {
+  const context=await browser.newContext({viewport:page.viewportSize()!});const manager=await context.newPage()
+  let release=()=>{}
+  try {
+    const f=await fixture(page,manager);await formal(manager,f);const dialog=await openResult(page)
+    await dialog.getByRole('button',{name:'更正成绩',exact:true}).click()
+    await dialog.getByLabel('更正地面分值',{exact:true}).fill('70');await dialog.getByLabel('更正摆放分值',{exact:true}).fill('70');await dialog.getByLabel('更正原因',{exact:true}).fill('模拟延迟查询期间保存更正')
+    const gate=new Promise<void>(resolve=>{release=resolve});let started!:()=>void;const pending=new Promise<void>(resolve=>{started=resolve});let finished!:()=>void;const complete=new Promise<void>(resolve=>{finished=resolve});let first=true
+    await page.route('**/api/hygiene/batches/*/rooms?*',async route=>{
+      if(!first) {await route.continue();return}first=false
+      const response=await route.fetch();started();await gate;await route.fulfill({response});finished()
+    })
+    await dialog.getByRole('button',{name:'核对最新成绩（保留输入）',exact:true}).click();await pending
+    await expect(dialog.getByRole('status').filter({hasText:'已载入最新成绩'})).toBeVisible()
+    await dialog.getByRole('button',{name:'保存成绩更正',exact:true}).click();await expect(dialog.getByRole('status').filter({hasText:'成绩更正已保存'})).toBeVisible()
+    await dialog.getByRole('button',{name:'返回',exact:true}).click();release();await complete;await page.unroute('**/api/hygiene/batches/*/rooms?*')
+    await expect(page.getByRole('row').filter({hasText:'A101'})).toContainText('70.00分')
+  } finally {release();await context.close()}
 })

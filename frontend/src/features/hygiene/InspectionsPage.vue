@@ -37,24 +37,27 @@ const preview = computed(() => {
   const weighted = dimensions.reduce((sum, d) => sum + Math.round(d.weight * 100) * Number(values.value[d.id]), 0)
   return Math.floor((weighted + 50) / 100) / 100
 })
+let loadRequest = 0
 async function load(page = 1) {
-  if (loading.value) return
-  loading.value = true; error.value = ''; current.value = null; result.value = { items: [], total: 0, page, size: query.size }
+  const requestId = ++loadRequest, selected = selectedBatchId.value, filters = { ...query }
+  loading.value = true; error.value = ''; current.value = null; result.value = { items: [], total: 0, page, size: filters.size }
   try {
     const data = await request<CurrentBatch>('/api/hygiene/batches/current')
-    if (selectedBatchId.value !== null) data.batch = await request<Batch>(`/api/hygiene/batches/${selectedBatchId.value}`)
+    if (selected !== null) data.batch = await request<Batch>(`/api/hygiene/batches/${selected}`)
     if (data.batch) {
-      const params = new URLSearchParams({ q: query.q, page: String(page), size: String(query.size) })
-      if (query.buildingId) params.set('buildingId', query.buildingId)
-      if (query.inspected) params.set('inspected', query.inspected)
+      const params = new URLSearchParams({ q: filters.q, page: String(page), size: String(filters.size) })
+      if (filters.buildingId) params.set('buildingId', filters.buildingId)
+      if (filters.inspected) params.set('inspected', filters.inspected)
       let rows = await request<InspectionPage>(`/api/hygiene/batches/${data.batch.id}/rooms?${params}`)
       const last = Math.max(1, Math.ceil(rows.total / rows.size))
       if (page > last) { params.set('page', String(last)); rows = await request<InspectionPage>(`/api/hygiene/batches/${data.batch.id}/rooms?${params}`) }
+      if (requestId !== loadRequest) return
       result.value = rows
     }
-    current.value = data; appliedScope.value = { q: query.q, buildingId: query.buildingId }
-  } catch (failure) { if (!await authorize(failure)) error.value = message(failure) }
-  finally { loading.value = false }
+    if (requestId !== loadRequest) return
+    current.value = data; appliedScope.value = { q: filters.q, buildingId: filters.buildingId }
+  } catch (failure) { if (requestId === loadRequest && !await authorize(failure)) error.value = message(failure) }
+  finally { if (requestId === loadRequest) loading.value = false }
 }
 async function selectBatch(id: number | null) {
   selectedBatchId.value = id; query.q = ''; query.buildingId = ''; query.inspected = ''; success.value = ''
