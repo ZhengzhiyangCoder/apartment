@@ -491,3 +491,55 @@ test('草稿暂存断网保留输入，多窗口版本冲突须显式载入最�
   await page.getByTestId('personal-drafts').getByRole('button', { name: '恢复草稿', exact: true }).click()
   await expect(form.getByLabel('地面分值', { exact: true })).toHaveValue('96')
 })
+
+
+test('候选搜索结果不含已选寝室时必须重新选择，不能误补入旧选择', async ({ page }) => {
+  await fixtures(page, false); const batch = await post(page, '/api/hygiene/batches/current/prepare', {}, 200)
+  const student = (await (await page.request.get('/api/housing/students')).json()).items[0]
+  const room = (await (await page.request.get('/api/housing/rooms?q=A101')).json()).items[0]
+  const bed = (await (await page.request.get(`/api/housing/beds?roomId=${room.id}`)).json()).items[0]
+  await post(page, '/api/housing/residencies', { studentId: student.id, bedId: bed.id })
+  await page.goto('/inspections'); await page.getByRole('button', { name: '批次管理', exact: true }).click()
+  const form = page.getByRole('dialog', { name: '调整检查批次', exact: true })
+  await form.getByLabel('批次操作', { exact: true }).selectOption('ADD')
+  await form.getByLabel('补入寝室', { exact: true }).selectOption(String(room.id))
+  await form.getByLabel('操作原因', { exact: true }).fill('模拟查询后重新核对寝室')
+  await form.getByLabel('搜索可补入寝室', { exact: true }).fill('不存在的寝室')
+  await form.getByRole('button', { name: '查找寝室', exact: true }).click()
+  await expect(form).toContainText('暂无符合条件的可补入寝室')
+  await form.getByRole('button', { name: '确认变更', exact: true }).click()
+  await expect(form.getByRole('alert')).toContainText('请选择需要补入的寝室')
+  expect((await (await page.request.get(`/api/hygiene/batches/${batch.id}`)).json()).expectedCount).toBe(0)
+  await form.getByLabel('搜索可补入寝室', { exact: true }).fill('A101')
+  await form.getByRole('button', { name: '查找寝室', exact: true }).click()
+  await form.getByLabel('补入寝室', { exact: true }).selectOption(String(room.id))
+  await form.getByRole('button', { name: '确认变更', exact: true }).click(); await expect(form).not.toBeVisible()
+  await expect(page.getByTestId('batch-progress')).toContainText('0 / 1')
+})
+
+test('迟到的前批次变更记录不得覆盖新选批次的记录', async ({ page }) => {
+  await fixtures(page); const previous = await post(page, '/api/hygiene/batches/current/prepare', {}, 200)
+  moveFixtureToPreviousWeek(previous.id)
+  await post(page, '/api/hygiene/batches/current/prepare', {}, 200)
+  await page.goto('/inspections'); await page.getByRole('button', { name: '历史批次', exact: true }).click()
+  const picker = page.getByRole('dialog', { name: '选择检查批次', exact: true })
+  await picker.getByRole('row').filter({ hasText: '关闭' }).getByRole('button', { name: '进入批次', exact: true }).click()
+  await expect(page.getByRole('heading', { name: '历史卫生检查', exact: true })).toBeVisible()
+  let release!: () => void, started!: () => void
+  const gate = new Promise<void>(resolve => { release = resolve }), requested = new Promise<void>(resolve => { started = resolve })
+  const pattern = `**/api/hygiene/batches/${previous.id}/changes?*`
+  await page.route(pattern, async route => { started(); await gate; await route.continue() })
+  try {
+    await page.getByRole('button', { name: '变更记录', exact: true }).click(); await requested
+    const changes = page.getByRole('dialog', { name: '批次变更记录', exact: true })
+    await expect(changes).toContainText('正在读取变更记录')
+    await changes.locator('.el-dialog__headerbtn').click()
+    await page.getByRole('button', { name: '返回本周', exact: true }).click()
+    await expect(page.getByRole('heading', { name: '本周卫生检查', exact: true })).toBeVisible()
+    await page.getByRole('button', { name: '变更记录', exact: true }).click()
+    const received = page.waitForResponse(r => r.url().includes(`/batches/${previous.id}/changes?`))
+    release(); await received
+    await expect(changes).toContainText('暂无批次变更记录')
+    await expect(changes).not.toContainText('跨周关闭普通录入')
+  } finally { release(); await page.unroute(pattern) }
+})

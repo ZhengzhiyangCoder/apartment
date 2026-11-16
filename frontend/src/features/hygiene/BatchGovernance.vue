@@ -16,7 +16,8 @@ const managementOpen = ref(false), managed = ref<Batch | null>(null), checking =
 const reason = ref(''), action = ref('CLOSE'), removedRoom = ref<InspectionRoom | null>(null), selectedRoom = ref(''), candidateQuery = ref('')
 const candidates = ref<EligiblePage>({ items: [], total: 0, page: 1, size: 10 }), candidatesLoading = ref(false), candidateError = ref('')
 const candidatePages = computed(() => Math.max(1, Math.ceil(candidates.value.total / candidates.value.size)))
-const changesOpen = ref(false), changesLoading = ref(false), changesError = ref(''), changesBatchId = ref(0)
+const changesOpen = ref(false), changesLoading = ref(false), changesError = ref(''), changesBatchId = ref(0), changesLabel = ref('')
+let candidateRequest = 0, changesRequest = 0
 const changes = ref<BatchChangePage>({ items: [], total: 0, page: 1, size: 10 })
 const changePages = computed(() => Math.max(1, Math.ceil(changes.value.total / changes.value.size)))
 const message = (e: unknown) => e instanceof Error ? e.message : '服务暂时不可用，请重试'
@@ -43,6 +44,7 @@ function selectBatch(id: number | null) { historyOpen.value = false; emit('selec
 async function openManagement(room: InspectionRoom | null = null) {
   if (!props.batch || saving.value || checking.value) return
   managed.value = props.batch; removedRoom.value = room; managementOpen.value = true; reason.value = ''; managementError.value = ''; selectedRoom.value = ''; candidateQuery.value = ''
+  candidateRequest++; candidatesLoading.value = false; candidateError.value = ''; candidates.value = { items: [], total: 0, page: 1, size: 10 }
   action.value = room ? 'REMOVE' : props.batch.status === 'SUSPENDED' ? 'RESTORE' : props.batch.scoringAllowed ? 'CLOSE' : 'REOPEN'
   await checkManagement()
 }
@@ -56,11 +58,16 @@ async function checkManagement() {
   finally { checking.value = false }
 }
 async function loadCandidates(page = 1) {
-  if (!managed.value || candidatesLoading.value) return
+  if (!managed.value) return
+  const target = managed.value.id, requestId = ++candidateRequest
   candidatesLoading.value = true; candidateError.value = ''
-  try { candidates.value = await request<EligiblePage>(`/api/hygiene/batches/${managed.value.id}/eligible-rooms?${new URLSearchParams({ q: candidateQuery.value, page: String(page), size: '10' })}`) }
-  catch (e) { if (!await authorize(e)) candidateError.value = message(e) }
-  finally { candidatesLoading.value = false }
+  try {
+    const data = await request<EligiblePage>(`/api/hygiene/batches/${target}/eligible-rooms?${new URLSearchParams({ q: candidateQuery.value, page: String(page), size: '10' })}`)
+    if (requestId !== candidateRequest || managed.value?.id !== target) return
+    candidates.value = data
+    if (!data.items.some(room => String(room.roomId) === selectedRoom.value)) selectedRoom.value = ''
+  } catch (e) { if (requestId === candidateRequest && !await authorize(e)) candidateError.value = message(e) }
+  finally { if (requestId === candidateRequest) candidatesLoading.value = false }
 }
 async function save() {
   if (!managed.value || saving.value || checking.value) return
@@ -77,13 +84,21 @@ async function save() {
   finally { saving.value = false }
 }
 async function loadChanges(page = 1) {
-  if (changesLoading.value || !changesBatchId.value) return
+  if (!changesBatchId.value) return
+  const target = changesBatchId.value, requestId = ++changesRequest
   changesLoading.value = true; changesError.value = ''
-  try { changes.value = await request<BatchChangePage>(`/api/hygiene/batches/${changesBatchId.value}/changes?page=${page}&size=10`) }
-  catch (e) { if (!await authorize(e)) changesError.value = message(e) }
-  finally { changesLoading.value = false }
+  changes.value = { items: [], total: 0, page, size: 10 }
+  try {
+    const data = await request<BatchChangePage>(`/api/hygiene/batches/${target}/changes?page=${page}&size=10`)
+    if (requestId === changesRequest) changes.value = data
+  } catch (e) { if (requestId === changesRequest && !await authorize(e)) changesError.value = message(e) }
+  finally { if (requestId === changesRequest) changesLoading.value = false }
 }
-function openChanges() { if (!props.batch) return; changesBatchId.value = props.batch.id; changesOpen.value = true; void loadChanges() }
+function openChanges() {
+  if (!props.batch) return
+  changesBatchId.value = props.batch.id; changesLabel.value = `${props.batch.isoYear}年第${props.batch.isoWeek}周 · 归属日 ${props.batch.weekStart}`
+  changesOpen.value = true; void loadChanges()
+}
 defineExpose({ openRemoval: (room: InspectionRoom) => openManagement(room) })
 </script>
 
@@ -114,6 +129,7 @@ defineExpose({ openRemoval: (room: InspectionRoom) => openManagement(room) })
     </form>
   </ElDialog>
   <ElDialog v-model="changesOpen" title="批次变更记录" width="800px" class="account-dialog" destroy-on-close>
+    <p class="form-hint">{{ changesLabel }}</p>
     <p v-if="changesLoading" role="status">正在读取变更记录…</p><p v-else-if="changesError" class="message error" role="alert">{{ changesError }} <button class="text-button" @click="loadChanges(changes.page)">重新加载记录</button></p>
     <template v-else><div class="batch-change-list"><article v-for="item in changes.items" :key="item.id" class="batch-change"><b>{{ actionNames[item.action] ?? item.action }}</b><p>{{ item.after.reason }}</p><p class="form-hint">{{ batchStatuses[item.before.batch.status] }} → {{ batchStatuses[item.after.batch.status] }} · 应检 {{ item.before.batch.expectedCount }} → {{ item.after.batch.expectedCount }} · 已检 {{ item.after.batch.inspectedCount }}<br /><span v-if="item.before.room || item.after.room">{{ (item.after.room ?? item.before.room)?.buildingName }} · {{ (item.after.room ?? item.before.room)?.roomNo }}<br /></span>操作人 #{{ item.actorId }} · {{ time(item.createdAt) }} · 记录 #{{ item.id }}</p></article><p v-if="!changes.items.length" class="account-empty">暂无批次变更记录。</p></div><div class="account-pagination"><span>共 {{ changes.total }} 条变更</span><div><ElButton :disabled="changes.page <= 1" @click="loadChanges(changes.page - 1)">上一页记录</ElButton><span>{{ changes.page }} / {{ changePages }}</span><ElButton :disabled="changes.page >= changePages" @click="loadChanges(changes.page + 1)">下一页记录</ElButton></div></div></template>
   </ElDialog>
