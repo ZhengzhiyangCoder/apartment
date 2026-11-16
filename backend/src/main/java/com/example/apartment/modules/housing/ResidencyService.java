@@ -21,6 +21,7 @@ public class ResidencyService {
             AccountAccess accounts, AuditWriter audit) {
         this.residencies = residencies; this.profiles = profiles; this.catalog = catalog; this.accounts = accounts; this.audit = audit;
     }
+    @Transactional(readOnly=true) public ResidencyView detail(long id) { return required(residencies.find(id)); }
     @Transactional(readOnly = true)
     public HousingPage<ResidencyView> list(String q, Long studentId, Boolean current, int page, int size) {
         q = HousingPage.validate(q, page, size); validId(studentId);

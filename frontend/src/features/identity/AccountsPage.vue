@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { ElButton, ElDialog, ElInput } from 'element-plus'
 import { request, write } from '../../lib/http'
 import { currentUser, refreshUser, handleAuthorizationFailure, type Role } from './session'
@@ -22,10 +22,18 @@ const pages = computed(() => Math.max(1, Math.ceil(result.value.total / result.v
 
 const handleAuthorization = (failure: unknown) => handleAuthorizationFailure(failure, router)
 
+const route = useRoute(), record = ref(String(route.query.record ?? ''))
+async function leaveRecord() { record.value = ''; await router.replace({ path: route.path }); await load() }
+
 async function load(page = 1) {
   if (loading.value) return
   loading.value = true; error.value = ''
   try {
+    if (record.value) {
+      const item = await request<Account>(`/api/identity/accounts/${encodeURIComponent(record.value)}`)
+      result.value = { items: [item], total: 1, page: 1, size: 10 }
+      return
+    }
     const params = new URLSearchParams({ q: query.q, page: String(page), size: String(query.size) })
     if (query.role) params.set('role', query.role)
     if (query.enabled) params.set('enabled', query.enabled)
@@ -82,7 +90,8 @@ onMounted(() => load())
     <ElButton :disabled="loading" @click="edit('create')">创建账号</ElButton>
   </section>
   <section class="card account-card">
-    <form class="account-filters" @submit.prevent="load(1)">
+    <p v-if="record" class="housing-scope"><span>已定位记录 #{{ record }}</span><button class="text-button" :disabled="loading" @click="leaveRecord">退出记录定位</button></p>
+    <form v-else class="account-filters" @submit.prevent="load(1)">
       <div class="field search-field"><label for="account-query">搜索账号或姓名</label><ElInput id="account-query" v-model="query.q" placeholder="输入账号或姓名" :maxlength="64" :disabled="loading" /></div>
       <div class="field"><label for="role-filter">角色筛选</label><select id="role-filter" v-model="query.role" :disabled="loading"><option value="">全部角色</option><option v-for="(label, role) in roles" :key="role" :value="role">{{ label }}</option></select></div>
       <div class="field"><label for="status-filter">状态筛选</label><select id="status-filter" v-model="query.enabled" :disabled="loading"><option value="">全部状态</option><option value="true">已启用</option><option value="false">已停用</option></select></div>
@@ -102,7 +111,7 @@ onMounted(() => load())
       <p v-if="!result.items.length && !loading && !error" class="account-empty">暂无符合条件的账号，请调整查询条件。</p>
       <p v-if="loading" class="account-empty" role="status">正在读取账号…</p>
     </div>
-    <div class="account-pagination"><span>共 {{ result.total }} 个账号</span><label>每页 <select v-model.number="query.size" aria-label="每页条数" :disabled="loading" @change="load(1)"><option :value="10">10</option><option :value="20">20</option><option :value="50">50</option></select> 条</label><div><ElButton :disabled="loading || result.page <= 1" @click="load(result.page - 1)">上一页</ElButton><span aria-live="polite">{{ result.page }} / {{ pages }}</span><ElButton :disabled="loading || result.page >= pages" @click="load(result.page + 1)">下一页</ElButton></div></div>
+    <div v-if="!record" class="account-pagination"><span>共 {{ result.total }} 个账号</span><label>每页 <select v-model.number="query.size" aria-label="每页条数" :disabled="loading" @change="load(1)"><option :value="10">10</option><option :value="20">20</option><option :value="50">50</option></select> 条</label><div><ElButton :disabled="loading || result.page <= 1" @click="load(result.page - 1)">上一页</ElButton><span aria-live="polite">{{ result.page }} / {{ pages }}</span><ElButton :disabled="loading || result.page >= pages" @click="load(result.page + 1)">下一页</ElButton></div></div>
   </section>
   <p class="quiet-note">账号停用后保留历史记录；角色和安全设置变化后，相关账号需重新登录。</p>
 

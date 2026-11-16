@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { ElButton, ElDialog, ElInput } from 'element-plus'
 import { HttpError, request, write } from '../../lib/http'
 import { currentUser, handleAuthorizationFailure } from '../identity/session'
@@ -184,7 +184,13 @@ function corrected(score: FormalScore) {
   if (entry.value) entry.value.score = score
   void load(result.value.page)
 }
-onMounted(() => { void load(); void loadDrafts() })
+const route = useRoute()
+onMounted(async () => {
+  const batch = Number(route.query.batch), room = Number(route.query.room)
+  if (Number.isSafeInteger(batch) && batch > 0) selectedBatchId.value = batch
+  await load(); void loadDrafts()
+  if (selectedBatchId.value && Number.isSafeInteger(room) && room > 0) await openRoom(room, selectedBatchId.value)
+})
 </script>
 
 <template>

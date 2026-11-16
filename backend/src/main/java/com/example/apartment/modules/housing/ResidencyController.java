@@ -12,6 +12,7 @@ public class ResidencyController {
     private final ResidencyService service;
     private final CurrentResidencyQuery current;
     public ResidencyController(ResidencyService service, CurrentResidencyQuery current) { this.service = service; this.current = current; }
+    @GetMapping("/residencies/{id}") public ResidencyView detail(@PathVariable long id) { return service.detail(id); }
     @GetMapping("/residencies")
     public HousingPage<ResidencyView> list(@RequestParam(defaultValue = "") String q, @RequestParam(required = false) Long studentId,
             @RequestParam(required = false) Boolean current, @RequestParam(defaultValue = "1") int page, @RequestParam(defaultValue = "10") int size) {

@@ -18,6 +18,7 @@ public class StudentProfileService {
     public StudentProfileService(StudentProfileMapper profiles, AccountAccess accounts, AuditWriter audit, ResidencyReferences residencies) {
         this.profiles = profiles; this.accounts = accounts; this.audit = audit; this.residencies = residencies;
     }
+    @Transactional(readOnly=true) public StudentView detail(long id) { return view(required(profiles.find(id))); }
     @Transactional(readOnly = true)
     public HousingPage<StudentView> list(String q, Boolean enabled, int page, int size) {
         q = HousingPage.validate(q, page, size);

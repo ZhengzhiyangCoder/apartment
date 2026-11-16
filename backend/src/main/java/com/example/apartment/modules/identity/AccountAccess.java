@@ -55,6 +55,13 @@ public class AccountAccess {
                 management.count(q.strip(), Role.MAINTAINER, true), page, size);
     }
 
+    public record ActorName(long id,String displayName) {}
+    @Transactional(readOnly=true)
+    public java.util.Map<Long,String> actorNames(java.util.List<Long> ids) {
+        if(ids.isEmpty()) return java.util.Map.of();
+        return accounts.actorNames(ids).stream().collect(java.util.stream.Collectors.toMap(ActorName::id,ActorName::displayName));
+    }
+
     /** Caller holds the shared business lock, so role/enable changes cannot race assignment. */
     @Transactional(propagation = Propagation.MANDATORY)
     public Maintainer lockEnabledMaintainer(long id) {

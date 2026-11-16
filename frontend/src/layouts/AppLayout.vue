@@ -30,6 +30,7 @@ async function signOut() {
         <RouterLink v-if="['SYSTEM_ADMIN', 'DORM_MANAGER'].includes(currentUser.role)" to="/inspections" class="nav-item"><AppIcon name="shield" />本周卫生检查</RouterLink>
         <RouterLink v-if="['SYSTEM_ADMIN', 'DORM_MANAGER'].includes(currentUser.role)" to="/statistics" class="nav-item"><AppIcon name="shield" />卫生统计</RouterLink>
         <RouterLink v-if="['SYSTEM_ADMIN', 'DORM_MANAGER'].includes(currentUser.role)" to="/rectifications" class="nav-item"><AppIcon name="shield" />卫生整改</RouterLink>
+        <RouterLink v-if="['SYSTEM_ADMIN', 'DORM_MANAGER'].includes(currentUser.role)" to="/audit" class="nav-item"><AppIcon name="shield" />{{ currentUser.role === 'SYSTEM_ADMIN' ? '管理操作审计' : '本人操作记录' }}</RouterLink>
         <RouterLink :to="workspacePath()" class="nav-item"><AppIcon name="home" />个人工作台</RouterLink>
         <RouterLink to="/profile" class="nav-item"><AppIcon name="user" />个人资料</RouterLink>
         <RouterLink to="/password" class="nav-item"><AppIcon name="key" />修改密码</RouterLink>

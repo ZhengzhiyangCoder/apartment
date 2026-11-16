@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { ElButton, ElDialog, ElInput } from 'element-plus'
 import { request, write } from '../../lib/http'
 import { currentUser, handleAuthorizationFailure } from '../identity/session'
@@ -108,7 +108,12 @@ async function activate() {
   } catch (failure) { if (!await authorize(failure)) activationError.value = message(failure) }
   finally { activating.value = false }
 }
-onMounted(() => load())
+const route = useRoute()
+onMounted(async () => {
+  await load()
+  const id = Number(route.query.record)
+  if (Number.isSafeInteger(id) && id > 0) await view(id)
+})
 </script>
 
 <template>

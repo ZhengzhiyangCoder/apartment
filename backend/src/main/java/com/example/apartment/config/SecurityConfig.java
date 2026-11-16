@@ -45,18 +45,18 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.POST, "/api/auth/login").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/auth/me", "/api/identity/workspaces/*").authenticated()
                 .requestMatchers(HttpMethod.POST, "/api/auth/password").authenticated()
-                .requestMatchers(HttpMethod.GET, "/api/identity/accounts").hasRole("SYSTEM_ADMIN")
+                .requestMatchers(HttpMethod.GET, "/api/identity/accounts", "/api/identity/accounts/*").hasRole("SYSTEM_ADMIN")
                 .requestMatchers(HttpMethod.POST, "/api/identity/accounts").hasRole("SYSTEM_ADMIN")
                 .requestMatchers(HttpMethod.POST, "/api/identity/accounts/*/role", "/api/identity/accounts/*/enabled",
                         "/api/identity/accounts/*/reset-password").hasRole("SYSTEM_ADMIN")
-                .requestMatchers(HttpMethod.GET, "/api/housing/buildings", "/api/housing/rooms", "/api/housing/beds").hasAnyRole("SYSTEM_ADMIN", "DORM_MANAGER")
+                .requestMatchers(HttpMethod.GET, "/api/housing/buildings", "/api/housing/rooms", "/api/housing/beds", "/api/housing/buildings/*", "/api/housing/rooms/*", "/api/housing/beds/*").hasAnyRole("SYSTEM_ADMIN", "DORM_MANAGER")
                 .requestMatchers(HttpMethod.POST, "/api/housing/buildings", "/api/housing/buildings/*", "/api/housing/buildings/*/enabled",
                         "/api/housing/rooms", "/api/housing/rooms/*", "/api/housing/rooms/*/enabled",
                         "/api/housing/beds", "/api/housing/beds/*", "/api/housing/beds/*/enabled").hasRole("SYSTEM_ADMIN")
-                .requestMatchers(HttpMethod.GET, "/api/housing/students").hasRole("SYSTEM_ADMIN")
+                .requestMatchers(HttpMethod.GET, "/api/housing/students", "/api/housing/students/*").hasRole("SYSTEM_ADMIN")
                 .requestMatchers(HttpMethod.POST, "/api/housing/students", "/api/housing/students/*", "/api/housing/students/*/enabled").hasRole("SYSTEM_ADMIN")
                 .requestMatchers(HttpMethod.GET, "/api/housing/my-residency").hasRole("STUDENT")
-                .requestMatchers(HttpMethod.GET, "/api/housing/residencies", "/api/housing/vacant-beds").hasRole("SYSTEM_ADMIN")
+                .requestMatchers(HttpMethod.GET, "/api/housing/residencies", "/api/housing/residencies/*", "/api/housing/vacant-beds").hasRole("SYSTEM_ADMIN")
                 .requestMatchers(HttpMethod.POST, "/api/housing/residencies", "/api/housing/residencies/*/transfer", "/api/housing/residencies/*/checkout").hasRole("SYSTEM_ADMIN")
                 .requestMatchers(HttpMethod.GET, "/api/repairs/maintainers").hasAnyRole("SYSTEM_ADMIN", "DORM_MANAGER")
                 .requestMatchers(HttpMethod.POST, "/api/repairs/*/assign", "/api/repairs/*/reassign").hasAnyRole("SYSTEM_ADMIN", "DORM_MANAGER")
@@ -81,6 +81,7 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.POST, "/api/hygiene/rectifications/*/follow-ups", "/api/hygiene/rectifications/*/verify", "/api/hygiene/rectifications/*/close").hasAnyRole("SYSTEM_ADMIN", "DORM_MANAGER")
                 .requestMatchers(HttpMethod.GET, "/api/hygiene/scores/*", "/api/hygiene/scores/*/corrections").hasAnyRole("SYSTEM_ADMIN", "DORM_MANAGER")
                 .requestMatchers(HttpMethod.POST, "/api/hygiene/scores/*/corrections").hasRole("SYSTEM_ADMIN")
+                .requestMatchers(HttpMethod.GET, "/api/audit/records", "/api/audit/records/*").hasAnyRole("SYSTEM_ADMIN", "DORM_MANAGER")
                 .anyRequest().denyAll())
             .formLogin(form -> form.loginProcessingUrl("/api/auth/login")
                 .successHandler((request, response, authentication) -> {

@@ -11,6 +11,7 @@ import com.example.apartment.modules.identity.AccountPrincipal;
 public class StudentProfileController {
     private final StudentProfileService service;
     public StudentProfileController(StudentProfileService service) { this.service = service; }
+    @GetMapping("/{id}") public StudentView detail(@PathVariable long id) { return service.detail(id); }
     @GetMapping
     public HousingPage<StudentView> list(@RequestParam(defaultValue = "") String q, @RequestParam(required = false) Boolean enabled,
             @RequestParam(defaultValue = "1") int page, @RequestParam(defaultValue = "10") int size) {

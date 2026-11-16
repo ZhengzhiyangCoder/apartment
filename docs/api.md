@@ -290,3 +290,17 @@ SCORE_DRAFT_SAVED审计与暂存同事务，target_type=BATCH；仅记录roomId�
 低于固定阈值时创建/复用OPEN整改；同一事件已有scoreId关联时保留原触发快照，追加管理轨迹并清除当前核实。更正为达标且关联OPEN事件时保存CORRECTED日志、递增事件版本并清除核实；跟进/历史核实不删，必须重新核实关闭。已关闭事件保持关闭，后续更正再次低分可另起事件。triggers新增corrected（评分version>0），同时展示原totalScore与currentScore；“触发成绩已更正”不会代替人工核实。
 
 页面入口：本周卫生检查 → 当前/历史批次 → 查看结果。管理员可更正，宿管只读当前值和分页前后记录；冲突/断网保留分值与原因，显式“核对最新成绩（保留输入）”后再提交。学生/维修人员不能访问更正及其历史接口。
+
+## 管理操作审计与来源定位（任务15）
+
+`GET /api/audit/records`：SYSTEM_ADMIN 可查全局；DORM_MANAGER 由服务端强制 `actor_id=当前账号`，传入其他 actorId 返回403。STUDENT、MAINTAINER 无审计查询权，继续从本人/当前分派的工单读取状态日志。未登录401，账号停用或角色变化后的旧会话401。
+
+参数均可省略：`actorId`、`targetType`、`targetId`、`action`、`from`、`until`、`sort=NEWEST`、`page=1`、`size=10`。ID须为正整数；page≥1，size为1–100。targetType为ACCOUNT/BUILDING/ROOM/BED/STUDENT/RESIDENCY/REPAIR/SCHEME/BATCH/SCORE/RECTIFICATION；action采用已实现关键业务动作枚举，未知动作/类型/排序返回400。sort只接受NEWEST/OLDEST，按created_at与id同向排序；时间为ISO Instant，from包含、until不包含，两者同时提供时须from<until。页面日期包含起止当天，按浏览器本地时区转换。所有值绑定参数，排序不拼入用户文本。
+
+响应`{items,total,page,size,scope}`，scope为ALL/OWN。列表只含id、actorId、actorName（当前账号显示名称）、action、targetType、targetId、createdAt，无原始快照。精确总数与items复用同一授权筛选。
+
+`GET /api/audit/records/{id}`：同角色范围，不存在或非本人返回同一404。返回`{entry,before,after,reason,references}`；按对象明确选取必要字段，不直接返回operation_log原始JSON。不返回密码、哈希、会话、私有草稿分值、报修图片/请求标识/无关学生资料或整份工单时间线。重分配/取消/处理原因取操作当时最后一条状态说明，调寝保留previous/current及办理说明，更正保留当时完整维度与分值。初次名单保留批次及数量，完整应检名单在业务页读取。普通接口不支持改写或删除审计。
+
+references含固定应用内路径，使用稳定业务ID定位当前来源；历史快照不随改名/停用改变。`/audit?record={审计ID}`可直达详情。来源为`/accounts?record=...`、`/housing?kind=buildings|rooms|beds|students&record=...`、`/residencies?record=...`、`/repairs?record=...`、`/schemes?record=...`、`/inspections?batch=...&room=...`、`/rectifications?record=...`。来源仍走独立业务授权，链接本身不授予权限。成绩更正历史、工单状态日志、整改轨迹仍由原领域接口提供，不复制成新的业务历史。
+
+为精确定位，新增 `GET /api/identity/accounts/{id}` 和 `GET /api/housing/{buildings|rooms|beds|students|residencies}/{id}`。账号/学生资料/住宿关系仅SYSTEM_ADMIN；楼栋/寝室/床位两管理角色只读。返回原有公开视图，不存在404，保留停用资料及历史住宿。界面“退出记录定位”恢复普通列表。

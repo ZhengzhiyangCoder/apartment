@@ -19,6 +19,9 @@ public class HousingCatalogService {
     public HousingCatalogService(HousingCatalogMapper catalog, AccountAccess accounts, AuditWriter audit, ResidencyReferences residencies) {
         this.catalog = catalog; this.accounts = accounts; this.audit = audit; this.residencies = residencies;
     }
+    @Transactional(readOnly=true) public Building building(long id) { return required(catalog.readBuilding(id)); }
+    @Transactional(readOnly=true) public Room room(long id) { return required(catalog.readRoom(id)); }
+    @Transactional(readOnly=true) public Bed bed(long id) { return required(catalog.readBed(id)); }
     @Transactional(readOnly = true)
     public HousingPage<Building> buildings(String q, Boolean enabled, int page, int size) {
         q = HousingPage.validate(q, page, size);

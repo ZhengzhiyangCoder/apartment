@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref } from 'vue'
+import { useRoute } from 'vue-router'
 import { ElButton, ElDialog } from 'element-plus'
 import { request, write } from '../../lib/http'
 import type { PageResult } from '../housing/types'
@@ -59,7 +60,12 @@ async function save() {
   finally { saving.value = false }
 }
 function refresh() { void load() }
-onMounted(() => { void load(); window.addEventListener('focus', refresh) })
+const route = useRoute()
+onMounted(() => {
+  void load(); window.addEventListener('focus', refresh)
+  const id = Number(route.query.record)
+  if (Number.isSafeInteger(id) && id > 0) open(id)
+})
 onUnmounted(() => { requestId++; detailRequestId++; window.removeEventListener('focus', refresh) })
 </script>
 

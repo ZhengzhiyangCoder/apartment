@@ -7,6 +7,9 @@ import org.apache.ibatis.annotations.Update;
 
 @Mapper
 public interface AccountMapper {
+    @Select("<script>SELECT id,display_name FROM sys_user WHERE id IN <foreach collection='ids' item='id' open='(' separator=',' close=')'>#{id}</foreach></script>")
+    java.util.List<AccountAccess.ActorName> actorNames(@Param("ids") java.util.List<Long> ids);
+
     @Select("SELECT id, username, display_name FROM sys_user WHERE role = 'MAINTAINER' AND enabled = true"
             + " AND (#{q} = '' OR LOCATE(#{q}, username) > 0 OR LOCATE(#{q}, display_name) > 0) ORDER BY id DESC LIMIT #{size} OFFSET #{offset}")
     java.util.List<AccountAccess.Maintainer> enabledMaintainers(String q, int size, long offset);

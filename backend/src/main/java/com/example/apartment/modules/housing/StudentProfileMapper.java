@@ -11,6 +11,8 @@ public interface StudentProfileMapper {
     List<StudentProfile> list(String q, Boolean enabled, int size, long offset);
     @Select("SELECT COUNT(*) FROM student_profile" + FILTER)
     long count(String q, Boolean enabled);
+    @Select(COLUMNS + " WHERE id = #{id}")
+    StudentProfile find(long id);
     @Select(COLUMNS + " WHERE id = #{id} FOR UPDATE")
     StudentProfile lock(long id);
     @Select("SELECT COUNT(*) FROM student_profile WHERE user_id = #{userId}")

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { ElButton, ElDialog, ElInput } from 'element-plus'
 import { request, write } from '../../lib/http'
 import { currentUser, handleAuthorizationFailure } from '../identity/session'
@@ -28,10 +28,18 @@ function itemLabel(item: CatalogItem) {
 }
 const authorization = (failure: unknown) => handleAuthorizationFailure(failure, router)
 
+const route = useRoute(), record = ref(String(route.query.record ?? ''))
+async function leaveRecord() { record.value = ''; await router.replace({ path: route.path }); await load() }
+
 async function load(page = 1) {
   if (loading.value) return
   loading.value = true; error.value = ''
   try {
+    if (record.value) {
+      const item = await request<CatalogItem>(`/api/housing/${kind.value}/${encodeURIComponent(record.value)}`)
+      result.value = { items: [item], total: 1, page: 1, size: 10 }
+      return
+    }
     const params = new URLSearchParams({ q: query.q, page: String(page), size: String(query.size) })
     if (query.enabled) params.set('enabled', query.enabled)
     if (scope.value) params.set(scope.value.param, String(scope.value.id))
@@ -44,10 +52,10 @@ async function load(page = 1) {
 }
 function switchTab(tab: CatalogKind) {
   if (loading.value) return
-  kind.value = tab; scope.value = null; query.q = ''; query.enabled = ''; success.value = ''; result.value.items = []; load()
+  record.value = ''; void router.replace({ path: '/housing' }); kind.value = tab; scope.value = null; query.q = ''; query.enabled = ''; success.value = ''; result.value.items = []; load()
 }
 function children(item: Building | Room) {
-  kind.value = 'name' in item ? 'rooms' : 'beds'
+  record.value = ''; void router.replace({ path: '/housing' }); kind.value = 'name' in item ? 'rooms' : 'beds'
   scope.value = { id: item.id, label: itemLabel(item), param: 'name' in item ? 'buildingId' : 'roomId' }
   query.q = ''; query.enabled = ''; success.value = ''; result.value.items = []; load()
 }
@@ -78,7 +86,11 @@ async function submit() {
   } catch (failure) { if (!await authorization(failure)) formError.value = failure instanceof Error ? failure.message : '保存失败，请重试' }
   finally { saving.value = false }
 }
-onMounted(() => load())
+onMounted(() => {
+  const requested = String(route.query.kind ?? '')
+  if (requested && tabs.value.includes(requested as CatalogKind)) kind.value = requested as CatalogKind
+  void load()
+})
 </script>
 
 <template>
@@ -89,7 +101,8 @@ onMounted(() => load())
   <div class="housing-tabs" role="tablist" aria-label="住宿资料分类"><button v-for="tab in tabs" :key="tab" role="tab" :aria-selected="kind === tab" :disabled="loading" @click="switchTab(tab)">{{ names[tab] }}</button></div>
   <section class="card account-card">
     <div v-if="scope" class="housing-scope"><span>{{ scope.label }} <b>/ {{ names[kind] }}</b></span><button class="text-button" :disabled="loading" @click="scope = null; load()">查看全部{{ names[kind] }}</button></div>
-    <form class="account-filters" @submit.prevent="load(1)">
+    <p v-if="record" class="housing-scope"><span>已定位记录 #{{ record }}</span><button class="text-button" :disabled="loading" @click="leaveRecord">退出记录定位</button></p>
+    <form v-else class="account-filters" @submit.prevent="load(1)">
       <div class="field search-field"><label for="housing-query">搜索资料</label><ElInput id="housing-query" v-model="query.q" :placeholder="kind === 'students' ? '学号、姓名、学院或班级' : '楼栋名称、房号或床位编号'" :maxlength="64" :disabled="loading" /></div>
       <div class="field"><label for="housing-status">状态筛选</label><select id="housing-status" v-model="query.enabled" :disabled="loading"><option value="">全部状态</option><option value="true">已启用</option><option value="false">已停用</option></select></div>
       <ElButton native-type="submit" :disabled="loading" :loading="loading">查询</ElButton>
@@ -106,7 +119,7 @@ onMounted(() => load())
         <td><div class="account-actions"><button v-if="'name' in item || 'floor' in item" :disabled="loading" @click="children(item)">{{ 'name' in item ? '查看寝室' : '查看床位' }}</button><template v-if="canEdit"><button :disabled="loading" @click="edit('edit', item)">编辑</button><button :class="{ danger: item.enabled }" :disabled="loading" @click="edit('enabled', item)">{{ item.enabled ? '停用' : '启用' }}</button></template><span v-else-if="'bedNo' in item" class="form-hint">只读</span></div></td>
       </tr></tbody>
     </table><p v-if="loading" role="status" class="account-empty">正在读取资料…</p><p v-else-if="!result.items.length && !error" class="account-empty">暂无符合条件的{{ names[kind] }}，请调整查询条件{{ canEdit ? '或新增资料' : '' }}。</p></div>
-    <div class="account-pagination"><span>共 {{ result.total }} 条{{ names[kind] }}</span><label>每页 <select v-model.number="query.size" aria-label="每页条数" :disabled="loading" @change="load()"><option :value="10">10</option><option :value="20">20</option><option :value="50">50</option></select> 条</label><div><ElButton :disabled="loading || result.page <= 1" @click="load(result.page - 1)">上一页</ElButton><span aria-live="polite">{{ result.page }} / {{ pages }}</span><ElButton :disabled="loading || result.page >= pages" @click="load(result.page + 1)">下一页</ElButton></div></div>
+    <div v-if="!record" class="account-pagination"><span>共 {{ result.total }} 条{{ names[kind] }}</span><label>每页 <select v-model.number="query.size" aria-label="每页条数" :disabled="loading" @change="load()"><option :value="10">10</option><option :value="20">20</option><option :value="50">50</option></select> 条</label><div><ElButton :disabled="loading || result.page <= 1" @click="load(result.page - 1)">上一页</ElButton><span aria-live="polite">{{ result.page }} / {{ pages }}</span><ElButton :disabled="loading || result.page >= pages" @click="load(result.page + 1)">下一页</ElButton></div></div>
   </section>
   <p class="quiet-note">{{ kind === 'students' ? '学籍资料与登录账号分别维护；关联账号创建后固定，历史资料始终保留。' : '停用资料保留历史；新建或启用下级前，请先启用上级资料。' }}</p>
 

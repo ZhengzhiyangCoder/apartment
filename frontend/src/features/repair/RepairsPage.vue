@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, reactive, ref, watch } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { ElButton, ElDialog, ElInput } from 'element-plus'
 import { HttpError, request, write } from '../../lib/http'
 import { currentUser, handleAuthorizationFailure } from '../identity/session'
@@ -102,7 +102,12 @@ async function workflow(action: 'assign' | 'reassign' | 'start' | 'complete') {
     }
   } finally { acting.value = false }
 }
-onMounted(() => load())
+const route = useRoute()
+onMounted(async () => {
+  await load()
+  const id = Number(route.query.record)
+  if (Number.isSafeInteger(id) && id > 0) await view(id)
+})
 </script>
 <template>
   <section class="page-head account-heading"><div><p class="eyebrow">REPAIRS / 报修服务</p><h1>{{ isStudent ? '我的报修' : isMaintainer ? '我的维修任务' : '报修管理' }}</h1><p class="subtitle">{{ isStudent ? '寝室有问题，随时告诉我们。提交需求，查看进度。' : isMaintainer ? '处理分配给你的任务，记录维修进度与结果。' : '分配维修需求，跟进处理进度，保留责任记录。' }}</p></div><ElButton v-if="isStudent" :disabled="loading || !residence || !!residenceError" @click="openCreate">新建报修</ElButton></section>

@@ -52,6 +52,8 @@ public interface HousingCatalogMapper {
     List<Bed> beds(String q, Long buildingId, Long roomId, Boolean enabled, int size, long offset);
     @Select("SELECT COUNT(*)" + BED_FROM + BED_FILTER)
     long countBeds(String q, Long buildingId, Long roomId, Boolean enabled);
+    @Select(BED_COLUMNS + BED_FROM + " WHERE d.id = #{id}")
+    Bed readBed(long id);
     @Select(BED_COLUMNS + BED_FROM + " WHERE d.id = #{id} FOR UPDATE")
     Bed bed(long id);
     @Insert("INSERT INTO dorm_bed(room_id, bed_no) VALUES (#{roomId}, #{bedNo})")

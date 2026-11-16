@@ -11,6 +11,8 @@ public class AccountAdministrationController {
     private final AccountAdministrationService service;
     public AccountAdministrationController(AccountAdministrationService service) { this.service = service; }
 
+    @GetMapping("/{id}") public AccountView detail(@PathVariable long id) { return service.detail(id); }
+
     @GetMapping
     public AccountPage list(@RequestParam(defaultValue = "") String q, @RequestParam(required = false) Role role,
             @RequestParam(required = false) Boolean enabled, @RequestParam(defaultValue = "1") int page,

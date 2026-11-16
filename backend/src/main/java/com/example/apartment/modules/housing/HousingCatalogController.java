@@ -12,6 +12,9 @@ import static com.example.apartment.modules.housing.HousingViews.*;
 public class HousingCatalogController {
     private final HousingCatalogService service;
     public HousingCatalogController(HousingCatalogService service) { this.service = service; }
+    @GetMapping("/buildings/{id}") public Building building(@PathVariable long id) { return service.building(id); }
+    @GetMapping("/rooms/{id}") public Room room(@PathVariable long id) { return service.room(id); }
+    @GetMapping("/beds/{id}") public Bed bed(@PathVariable long id) { return service.bed(id); }
     @GetMapping("/buildings")
     public HousingPage<Building> buildings(@RequestParam(defaultValue = "") String q, @RequestParam(required = false) Boolean enabled,
             @RequestParam(defaultValue = "1") int page, @RequestParam(defaultValue = "10") int size) {

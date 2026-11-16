@@ -15,6 +15,7 @@ import SchemesPage from '../features/hygiene/SchemesPage.vue'
 import StudentResultsPage from '../features/hygiene/StudentResultsPage.vue'
 import RectificationsPage from '../features/hygiene/RectificationsPage.vue'
 import StatisticsPage from '../features/hygiene/StatisticsPage.vue'
+import AuditPage from '../features/audit/AuditPage.vue'
 import AppLayout from '../layouts/AppLayout.vue'
 
 export const router = createRouter({
@@ -26,6 +27,7 @@ export const router = createRouter({
       { path: 'workspace/:role', component: WorkspacePage },
       { path: 'profile', component: ProfilePage },
       { path: 'password', component: PasswordPage },
+      { path: 'audit', component: AuditPage, meta: { roles: ['SYSTEM_ADMIN', 'DORM_MANAGER'] } },
       { path: 'accounts', component: AccountsPage, meta: { role: 'SYSTEM_ADMIN' } },
       { path: 'residencies', component: ResidencyPage, meta: { role: 'SYSTEM_ADMIN' } },
       { path: 'my-residency', component: MyResidencyPage, meta: { role: 'STUDENT' } },
