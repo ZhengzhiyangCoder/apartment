@@ -3,7 +3,7 @@ import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 import { ElButton } from 'element-plus'
 import { request } from '../../lib/http'
-import { currentUser, refreshUser, handleAuthorizationFailure, workspacePath } from '../identity/session'
+import { currentUser, handleAuthorizationFailure, workspacePath, type Profile } from '../identity/session'
 import { statuses, categories } from '../repair/types'
 import { batchStatuses } from '../hygiene/batch-types'
 import type { Dashboard } from './types'
@@ -16,11 +16,10 @@ let requestId = 0
 async function load() {
   const id = ++requestId; loading.value = true; error.value = ''; data.value = null
   try {
-    const user = await refreshUser()
-    // refreshUser clears the shared session and unmounts this page on 401.
-    // Still finish the login redirect before checking the local request generation.
-    if (!user) { await router.replace('/login'); return }
+    // Read locally first: an old page must not overwrite a newer session.
+    const user = await request<Profile>('/api/auth/me')
     if (id !== requestId) return
+    currentUser.value = user
     if (route.params.role !== user.role) { await router.replace(workspacePath()); return }
     const next = await request<Dashboard>('/api/dashboard')
     if (id !== requestId) return

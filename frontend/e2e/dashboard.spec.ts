@@ -191,3 +191,25 @@ test('迟到的工作台响应不会覆盖新的刷新或离页后的业务', as
   release(); await expect(page.getByTestId('dashboard-inspection')).not.toContainText('尚未准备')
   await page.getByRole('link', { name: '查看卫生统计', exact: true }).click(); await expect(page.getByTestId('dashboard-content')).toHaveCount(0)
 })
+
+test('旧工作台迟到身份响应不能覆盖退出后重新登录的学生身份', async ({ page }) => {
+  await login(page, 'system_admin'); await expect(page.getByTestId('dashboard-content')).toBeVisible()
+  let release!: () => void, started!: () => void
+  const gate = new Promise<void>(resolve => { release = resolve }), entered = new Promise<void>(resolve => { started = resolve })
+  await page.route('**/api/auth/me', async route => {
+    const response = await route.fetch(); expect(response.status()).toBe(200); started(); await gate; await route.fulfill({ response })
+  }, { times: 1 })
+  await page.getByRole('button', { name: '刷新工作台', exact: true }).click(); await entered
+  await page.getByRole('button', { name: '退出登录', exact: true }).click(); await expect(page).toHaveURL(/\/login/)
+  await page.getByLabel('账号', { exact: true }).fill('student')
+  await page.getByLabel('密码', { exact: true }).fill('DemoPass2026!')
+  await page.getByRole('button', { name: '登录', exact: true }).click()
+  await expect(page.getByRole('heading', { name: '学生工作台', exact: true })).toBeVisible()
+  await expect(page.getByTestId('dashboard-content')).toBeVisible()
+  const oldResponse = page.waitForResponse('**/api/auth/me')
+  release(); await (await oldResponse).finished()
+  await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))))
+  await expect(page.getByRole('heading', { name: '学生工作台', exact: true })).toBeVisible()
+  await expect(page.getByRole('link', { name: '账号管理', exact: true })).toHaveCount(0)
+  await expect(page.getByTestId('dashboard-residency')).toBeVisible()
+})
