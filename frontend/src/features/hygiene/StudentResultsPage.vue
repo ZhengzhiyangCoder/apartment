@@ -31,8 +31,9 @@ async function load(resetPage = false) {
     const next = await request<StudentResults>(`/api/hygiene/student/results?${params}`)
     if (id !== requestId) return
     // A shrinking leaderboard should not leave a previously valid last page empty.
-    if (next.rankings.total > 0 && (page.value - 1) * next.rankings.size >= next.rankings.total) {
-      page.value = Math.ceil(next.rankings.total / next.rankings.size); await load(); return
+    const lastPage = Math.max(1, Math.ceil(next.rankings.total / next.rankings.size))
+    if (page.value > lastPage) {
+      page.value = lastPage; await load(); return
     }
     result.value = next
     if (!date.value) date.value = next.period.start

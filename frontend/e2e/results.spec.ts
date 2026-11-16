@@ -21,16 +21,21 @@ function moveWeek(id: number, monday: string) {
   // Time-only fixture; score publication and governance use the real HTTP APIs.
   execFileSync('docker', args, { cwd, input: `UPDATE hygiene_batch SET iso_year=2026, iso_week=MOD(YEARWEEK('${monday}',3),100), week_start='${monday}' WHERE id=${id};`, stdio: ['pipe', 'pipe', 'pipe'] })
 }
-async function fixtures(admin: Page, manager: Page) {
+async function fixtures(admin: Page, manager: Page, extraRooms = 0) {
   await login(admin, 'system_admin'); await login(manager, 'dorm_manager')
   const rooms = (await (await admin.request.get('/api/housing/rooms')).json()).items
   const home = rooms.find((r: { roomNo: string }) => r.roomNo === 'A101')
   const peer = rooms.find((r: { roomNo: string }) => r.roomNo === 'A102')
   const other = rooms.find((r: { roomNo: string }) => r.roomNo === 'B201')
+  const extra = []
+  for (let i = 0; i < extraRooms; i++) {
+    const room = await post(admin, '/api/housing/rooms', { buildingId: home.buildingId, roomNo: `A${103 + i}`, floor: 1 })
+    await post(admin, '/api/housing/beds', { roomId: room.id, bedNo: '01' }); extra.push(room)
+  }
   const student = (await (await admin.request.get('/api/housing/students')).json()).items[0]
   const homeBed = (await (await admin.request.get(`/api/housing/beds?roomId=${home.id}`)).json()).items[0]
   const residency = await post(admin, '/api/housing/residencies', { studentId: student.id, bedId: homeBed.id })
-  for (const [i, room] of [peer, other].entries()) {
+  for (const [i, room] of [peer, other, ...extra].entries()) {
     const user = await post(admin, '/api/identity/accounts', { username: `result_peer_${i}`, displayName: '模拟姓名不公开', role: 'STUDENT', password: 'DemoPass2026!' })
     const profile = await post(admin, '/api/housing/students', { userId: user.id, studentNo: `result_peer_${i}`, fullName: '模拟姓名不公开', college: '模拟学院', major: '模拟专业', className: '模拟班级' })
     const bed = (await (await admin.request.get(`/api/housing/beds?roomId=${room.id}`)).json()).items[0]
@@ -43,6 +48,7 @@ async function fixtures(admin: Page, manager: Page) {
     const batch = await post(manager, '/api/hygiene/batches/current/prepare', {}, 200); batches.push(batch)
     for (const [room, score] of [[home, value], [peer, 90], [other, 70]] as const)
       await post(manager, `/api/hygiene/batches/${batch.id}/rooms/${room.id}/score`, { dimensions: [{ dimensionId: batch.dimensions[0].id, score }] })
+    for (const room of extra) await post(manager, `/api/hygiene/batches/${batch.id}/rooms/${room.id}/score`, { dimensions: [{ dimensionId: batch.dimensions[0].id, score: 90 }] })
     moveWeek(batch.id, date)
   }
   return { home, peer, other, residency, batches }
@@ -55,6 +61,24 @@ async function month(page: Page) {
   await page.getByRole('button', { name: '查询成绩', exact: true }).click()
   await expect(page.getByTestId('result-summary')).toContainText('2026-11')
 }
+
+test('榜单末页在全部批次停检后回到空榜第一页', async ({ page, browser }) => {
+  const adminContext = await browser.newContext(), managerContext = await browser.newContext()
+  try {
+    const admin = await adminContext.newPage(), manager = await managerContext.newPage()
+    const f = await fixtures(admin, manager, 9); await login(page, 'student'); await page.goto('/my-results'); await month(page)
+    await page.getByRole('button', { name: '下一页', exact: true }).click()
+    await expect(page.getByText('第 2 / 2 页', { exact: true })).toBeVisible()
+    for (const original of f.batches) {
+      const path = `/api/hygiene/batches/${original.id}`, batch = await (await admin.request.get(path)).json()
+      await post(admin, path + '/state', { version: batch.version, action: 'SUSPEND', reason: '模拟全部样本停检' }, 200)
+    }
+    await page.getByRole('button', { name: '刷新成绩', exact: true }).click()
+    await expect(page.getByText('本周期未检查 / 数据不足，暂无参评寝室。', { exact: true })).toBeVisible()
+    await expect(page.getByText('第 1 / 1 页', { exact: true })).toBeVisible()
+    await expect(page.getByRole('button', { name: '上一页', exact: true })).toBeDisabled()
+  } finally { await adminContext.close(); await managerContext.close() }
+})
 
 test('调寝后刷新切换到新寝室历史，旧成绩被拒但本人旧报修仍可见', async ({ page, browser }) => {
   const adminContext = await browser.newContext({ viewport: page.viewportSize()! }), managerContext = await browser.newContext()
