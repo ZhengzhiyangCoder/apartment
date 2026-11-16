@@ -167,7 +167,7 @@ q为最多64字的名称字面包含匹配，区分大小写；status为上述�
 
 批次详情含id/isoYear/isoWeek/weekStart/schemeId/schemeName/threshold/status/createdBy/createdAt/expectedCount/inspectedCount/scoringAllowed/completionRate/dimensions/buildings。weekStart为该ISO周周一的日期；时间戳为UTC ISO时间，页面按上海时间展示。dimensions为绑定版本的id/name/weight/sortOrder；buildings为应检快照中的楼栋id/name，不受列表筛选影响。completionRate为已检/应检百分比、四舍五入两位；无应检时为null。100%仍保持开放。
 
-status为OPEN/CLOSED/SUSPENDED；08创建OPEN，不提供管理状态入口。scoringAllowed仅当前周OPEN为true，角色权限仍单独检查；旧周即使存储状态仍OPEN，普通提交也409 BATCH_NOT_OPEN，不通过GET改写状态。10承接显式状态管理、名单调整及历史授权补录。
+status为OPEN/CLOSED/SUSPENDED；scoringAllowed由统一规则计算：当前周OPEN，或早于本周且OPEN并有historicalReopened授权。角色权限仍单独校验。GET不改写状态；跨周关闭和显式治理见任务10接口。
 
 应检查询q最多64字，按快照楼栋/房号字面包含；buildingId可选正整数；inspected可选true/false。page从1开始，size默认10、上限100，按快照楼栋名、房号、roomId稳定升序。items含roomId/buildingId/buildingName/roomNo/scoreId/totalScore；未检的scoreId与totalScore均为null，正式零分仍为已检查。批次不存在404 BATCH_NOT_FOUND，名单外寝室404 NOT_EXPECTED_ROOM，参数非法400 INVALID_QUERY或INVALID_INPUT。
 
@@ -175,7 +175,7 @@ status为OPEN/CLOSED/SUSPENDED；08创建OPEN，不提供管理状态入口。sc
 
 正式结果含id/batchId/roomId/totalScore/threshold/submittedBy/submittedAt/dimensions；明细为dimensionId/name/weight/score/sortOrder的提交快照。评分、明细与SCORE_SUBMITTED审计同事务；批次、名单与BATCH_PREPARED审计同事务。审计target_type分别为SCORE/BATCH，记录实际操作者和白名单快照；失败均回滚。不存在删除或无痕更改入口。
 
-开放批次中有未检查寝室时，相关寝室与楼栋停用409 UNFINISHED_INSPECTION（已有入住/报修保护优先）；即使已退宿仍不能绕过。已评分不阻止停用且历史保留；应检不绑定某个床位或个人，不把这项保护扩张到已退宿学生/床位。旧周未处理名单仍受保护，后续由10显式处理批次/名单。学生与维修人员不能访问本管理接口；系统管理员不能冒充宿管提交。
+开放批次中有未检查寝室时，相关寝室与楼栋停用409 UNFINISHED_INSPECTION（已有入住/报修保护优先）；即使已退宿仍不能绕过。已评分不阻止停用且历史保留；应检不绑定某个床位或个人，不把这项保护扩张到已退宿学生/床位。任务10起，未授权的过期普通录入不再阻止停用；已授权历史开放批次的未检名单继续保护，关闭/停检解除该项保护。学生与维修人员不能访问本管理接口；系统管理员不能冒充宿管提交。
 
 
 ## 连续评分与个人草稿（任务09）
@@ -188,10 +188,39 @@ status为OPEN/CLOSED/SUSPENDED；08创建OPEN，不提供管理状态入口。sc
 
 所有者从Session取得，客户端不能指定或切换所有者。系统管理员、学生和维修人员不能读写草稿。列表按updatedAt倒序、batchId倒序、roomId升序稳定分页，包含旧周和关闭/停检批次，不隐式写入。草稿返回batchId/roomId/buildingName/roomNo/isoYear/isoWeek/status/version/updatedAt/dimensions，不返回其他人的输入。
 
-草稿允许0–20项本方案维度的原始字符串value，每项最多4字符、可为空；用于中断时保留未填完或待修正的分值，不进行正式分数计算。维度不可重复或来自其他方案。version首次传0，之后传上次服务端版本；过期409 DRAFT_CHANGED，保留当前输入，核对最新草稿后由用户显式载入。暂存限当前周开放批次、名单内且未正式评分的寝室；非当前开放409 BATCH_NOT_OPEN，名单外404 NOT_EXPECTED_ROOM，已评分409 ALREADY_SCORED。历史草稿仍可读取，不能通过草稿接口发布。
+草稿允许0–20项本方案维度的原始字符串value，每项最多4字符、可为空；用于中断时保留未填完或待修正的分值，不进行正式分数计算。维度不可重复或来自其他方案。version首次传0，之后传上次服务端版本；过期409 DRAFT_CHANGED，保留当前输入，核对最新草稿后由用户显式载入。暂存限可录分批次（本周开放或已授权历史开放）、名单内且未正式评分的寝室；不可录分409 BATCH_NOT_OPEN，名单外404 NOT_EXPECTED_ROOM，已评分409 ALREADY_SCORED。历史草稿仍可读取，不能通过草稿接口发布。
 
 转正式仍调用任务08的score接口，重新校验批次、名单、方案维度、全部0–100整数与唯一正式记录。可携带draftVersion（非负整数；页面始终携带，无草稿为0）校验本人当前草稿版本，避免旧窗口误清理更新后的草稿；省略时兼容08直接录分调用。成功后在评分、明细、审计同一事务中删除该录入人/批次/寝室的草稿；其他人的草稿保留。校验、竞争、明细、审计或清理失败均不产生部分正式结果，也不删已有草稿。草稿不参与任何正式成绩或已检计数。
 
 页面“保存并下一间”只在score响应201后查询当前已应用楼栋/关键词范围内第一间未检寝室，采用既有稳定楼栋/房号顺序，跨分页、跨楼栋。请求期间锁定按钮。提交失败保留输入且不切换；已保存而下一间查询失败时明确区分，可“继续下一间”，不重发上一间评分。没有剩余寝室时显示范围已全部检查。
 
-SCORE_DRAFT_SAVED审计与暂存同事务，target_type=BATCH；仅记录roomId及前后version，不复制个人分值，避免未来审计查询泄漏草稿。正式成功沿用SCORE_SUBMITTED。10须通过真实状态管理回归关闭/停检只读、名单移除后仍可核对草稿、历史补录授权，09没有添加绕过批次状态的接口。
+SCORE_DRAFT_SAVED审计与暂存同事务，target_type=BATCH；仅记录roomId及前后version，不复制个人分值，避免未来审计查询泄漏草稿。正式成功沿用SCORE_SUBMITTED。任务10已接入真实治理与历史授权，同一scoringAllowed规则用于暂存与正式提交；移出名单后仍可通过本人草稿入口只读核对，原应检详情仍返回404。
+
+
+## 批次治理与历史补录（任务10）
+
+| 方法与路径 | 输入 | 权限与返回 |
+|---|---|---|
+| GET /api/hygiene/batches | page/size | 两类管理角色；按weekStart、id倒序分页批次详情 |
+| POST /api/hygiene/batches/{id}/state | version/action/reason | 仅系统管理员，CSRF；200最新批次详情 |
+| POST /api/hygiene/batches/{id}/rooms/{roomId}/add | version/reason | 仅系统管理员，CSRF；补入当前启用且有人入住的寝室 |
+| POST /api/hygiene/batches/{id}/rooms/{roomId}/remove | version/reason | 仅系统管理员，CSRF；仅可移出尚未正式评分的寝室 |
+| GET /api/hygiene/batches/{id}/eligible-rooms | q/page/size | 仅系统管理员；当前符合条件且不在应检名单的寝室 |
+| GET /api/hygiene/batches/{id}/changes | page/size | 两类管理角色；本批次名单/状态变更白名单记录，不含个人草稿或其他审计 |
+
+批次新增version、historicalReopened、suspendedFrom字段；治理写入必须携带读取到的非负version，原因必填、去首尾空白、最多500字。并发名单/状态变动后旧请求409 BATCH_CHANGED，页面保留原因并显式核对后重试。正式评分不更改批次版本，但与治理共用事务写锁，移出操作必定重查是否已评分。无名单删除后新增正式成绩的窗口。
+
+状态action为CLOSE/REOPEN/SUSPEND/RESTORE：
+
+- CLOSE：仅OPEN可关闭，并清除历史补录授权。
+- REOPEN：关闭或未授权的过期OPEN可重开；当前周开放，历史周额外设置historicalReopened=true。停检需先恢复；禁止未来周和重复重开已可录分批次。
+- SUSPEND：OPEN或CLOSED转停检，保存停检前状态与已有授权。
+- RESTORE：恢复停检前状态；若原为普通OPEN但已跨周且未授权，恢复为CLOSED；历史授权的OPEN可恢复继续补录。
+
+不支持的转换409 INVALID_BATCH_STATE。停检保留成绩、名单和草稿；检查进度仍是该批次的原始已检/应检数，停检不纳入统计考核。11/12负责在成绩、排名、均分和趋势查询中落实排除，不以本票宣称这些查询已交付。
+
+默认跨周即时禁止旧周普通录入，不依赖定时任务或用户刷新。显式POST current/prepare在同一事务中关闭全部过期且未授权的OPEN，记录BATCH_EXPIRED，然后准备/返回当前周；即使本周已存在也执行此清理。已授权历史OPEN永不被这条普通处理关闭，停检保留原状态至显式恢复。只读GET不执行清理；旧周存储仍OPEN时scoringAllowed=false，页面明确不可录分。
+
+名单调整不受开放状态限制，但不自动重开批次。补入时在写锁内重新验证当前入住/启用链并保存最新位置快照；已经在名单409 ROOM_ALREADY_EXPECTED，不符合条件409 ROOM_NOT_ELIGIBLE。移出已评分409 SCORED_ROOM_REQUIRED，名单外404 NOT_EXPECTED_ROOM。草稿外键不依赖名单项，移出保留所有个人草稿；原快照、原因和操作者可从变更记录追溯。后续入住/退宿继续不自动改写名单。
+
+分页默认10、最多100、page至少1，候选q最多64字符，按楼栋名/房号/roomId顺序字面匹配。变更按审计id倒序，返回items/total/page/size，item包含id/actorId/action/createdAt/before/after；before/after含batch，名单操作另含room（加入前或移出后为null），after含reason。动作白名单BATCH_ROOM_ADDED/REMOVED/CLOSED/REOPENED/SUSPENDED/RESTORED/EXPIRED；只展示这些明确公开的治理快照，系统审计查询仍归15。所有业务更改与审计同一事务，审计失败全部回滚。

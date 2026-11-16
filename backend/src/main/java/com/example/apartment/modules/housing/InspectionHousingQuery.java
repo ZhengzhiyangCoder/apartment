@@ -11,6 +11,6 @@ public class InspectionHousingQuery {
     public record OccupiedRoom(long roomId, long buildingId, String buildingName, String roomNo) {}
     private final ResidencyMapper residencies;
     public InspectionHousingQuery(ResidencyMapper residencies) { this.residencies = residencies; }
-    @Transactional(propagation = Propagation.MANDATORY)
+    @Transactional(readOnly = true)
     public List<OccupiedRoom> occupiedEnabledRooms() { return residencies.occupiedEnabledRooms(); }
 }

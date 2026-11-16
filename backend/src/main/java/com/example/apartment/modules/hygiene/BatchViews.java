@@ -16,7 +16,8 @@ public final class BatchViews {
         }
     }
     public record Batch(long id, int isoYear, int isoWeek, LocalDate weekStart, long schemeId, String schemeName,
-            BigDecimal threshold, Status status, long createdBy, Instant createdAt, long expectedCount, long inspectedCount) {}
+            BigDecimal threshold, Status status, long createdBy, Instant createdAt,
+            long version, boolean historicalReopened, Status suspendedFrom, long expectedCount, long inspectedCount) {}
     public record Detail(@com.fasterxml.jackson.annotation.JsonUnwrapped Batch batch, boolean scoringAllowed,
             BigDecimal completionRate, List<SchemeViews.Dimension> dimensions, List<Building> buildings) {}
     public record Current(@com.fasterxml.jackson.annotation.JsonUnwrapped Week week, Detail batch) {}
@@ -27,4 +28,6 @@ public final class BatchViews {
     public record Score(@com.fasterxml.jackson.annotation.JsonUnwrapped ScoreRow summary, List<ScoredDimension> dimensions) {}
     public record RoomDetail(Room room, Score score) {}
     public record RoomPage(List<Room> items, long total, int page, int size) {}
+    public record Page(List<Detail> items, long total, int page, int size) {}
+    public record EligiblePage(List<com.example.apartment.modules.housing.InspectionHousingQuery.OccupiedRoom> items, long total, int page, int size) {}
 }

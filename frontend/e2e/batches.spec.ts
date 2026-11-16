@@ -31,6 +31,139 @@ async function fixtures(page: Page, occupied = true) {
 }
 test.beforeEach(() => { execFileSync(fileURLToPath(new URL('../../scripts/seed-demo.sh', import.meta.url)), ['--test-reset'], { stdio: 'pipe' }) })
 
+test('批次治理可关闭停检恢复、移出名单后本人草稿仍可只读核对', async ({ page, browser }) => {
+  await fixtures(page); const batch = await post(page, '/api/hygiene/batches/current/prepare', {}, 200)
+  const context = await browser.newContext({ viewport: page.viewportSize()! }); const manager = await context.newPage()
+  try {
+    await login(manager, 'dorm_manager'); await manager.goto('/inspections')
+    await manager.getByRole('row').filter({ hasText: 'A102' }).getByRole('button', { name: '录入评分', exact: true }).click()
+    const entry = manager.getByRole('dialog', { name: '寝室正式评分', exact: true })
+    await entry.getByLabel('地面分值', { exact: true }).fill('87')
+    await entry.getByRole('button', { name: '暂存个人草稿', exact: true }).click()
+    await expect(entry.getByRole('status')).toContainText('个人草稿已保存')
+    await entry.getByRole('button', { name: '返回', exact: true }).click()
+    await page.goto('/inspections')
+    await page.getByRole('button', { name: '批次管理', exact: true }).click()
+    const governance = page.getByRole('dialog', { name: '调整检查批次', exact: true })
+    for (const [action, expected] of [['CLOSE', '关闭'], ['SUSPEND', '停检'], ['RESTORE', '关闭'], ['REOPEN', '开放']] as const) {
+      if (!await governance.isVisible()) await page.getByRole('button', { name: '批次管理', exact: true }).click()
+      await governance.getByLabel('批次操作', { exact: true }).selectOption(action)
+      await governance.getByLabel('操作原因', { exact: true }).fill(`模拟${expected}原因`)
+      await governance.getByRole('button', { name: '确认变更', exact: true }).click(); await expect(governance).not.toBeVisible()
+      await expect(page.getByTestId('batch-standard')).toContainText(expected)
+      await manager.getByRole('button', { name: '刷新本周', exact: true }).click()
+      await manager.getByTestId('personal-drafts').getByRole('button', { name: '恢复草稿', exact: true }).click()
+      await expect(entry.getByLabel('地面分值', { exact: true })).toHaveValue('87')
+      if (action !== 'REOPEN') {
+        await expect(entry.getByLabel('地面分值', { exact: true })).toBeDisabled()
+        await expect(entry.getByRole('button', { name: '提交正式评分', exact: true })).toHaveCount(0)
+        await post(manager, `/api/hygiene/batches/${batch.id}/rooms/${(await (await manager.request.get('/api/hygiene/drafts')).json()).items[0].roomId}/score`, { dimensions: batch.dimensions.map((d: { id: number }) => ({ dimensionId: d.id, score: 80 })) }, 409)
+      }
+      await entry.getByRole('button', { name: '返回', exact: true }).click()
+    }
+    await page.getByRole('row').filter({ hasText: 'A102' }).getByRole('button', { name: '移出名单', exact: true }).click()
+    await governance.getByLabel('操作原因', { exact: true }).fill('模拟误纳入移出')
+    await governance.getByRole('button', { name: '确认变更', exact: true }).click(); await expect(governance).not.toBeVisible()
+    await expect(page.getByTestId('batch-progress')).toContainText('0 / 2')
+    await manager.getByTestId('personal-drafts').getByRole('button', { name: '恢复草稿', exact: true }).click()
+    await expect(entry).toContainText('已移出应检名单'); await expect(entry.getByLabel('地面分值', { exact: true })).toHaveValue('87')
+    await expect(entry.getByLabel('地面分值', { exact: true })).toBeDisabled()
+    await manager.screenshot({ animations: 'disabled', path: `../output/playwright/task10-removed-draft-${page.viewportSize()!.width}.png` })
+    await page.getByRole('button', { name: '变更记录', exact: true }).click()
+    const history = page.getByRole('dialog', { name: '批次变更记录', exact: true })
+    await expect(history).toContainText('模拟误纳入移出'); await expect(history).toContainText('移出应检寝室')
+    await expect(history).toContainText('操作人 #')
+    await page.screenshot({ animations: 'disabled', path: `../output/playwright/task10-changes-${page.viewportSize()!.width}.png` })
+  } finally { await context.close() }
+})
+
+test('批次名单补入支持空状态、网络失败保留原因与版本冲突核对', async ({ page }) => {
+  await fixtures(page, false); const batch = await post(page, '/api/hygiene/batches/current/prepare', {}, 200)
+  const student = (await (await page.request.get('/api/housing/students')).json()).items[0]
+  const room = (await (await page.request.get('/api/housing/rooms?q=A101')).json()).items[0]
+  const bed = (await (await page.request.get(`/api/housing/beds?roomId=${room.id}`)).json()).items[0]
+  await post(page, '/api/housing/residencies', { studentId: student.id, bedId: bed.id })
+  await page.goto('/inspections'); await expect(page.getByText('本批次无应检寝室', { exact: true })).toBeVisible()
+  await expect(page.getByTestId('batch-progress').getByRole('progressbar')).toHaveCount(0)
+  await page.getByRole('button', { name: '批次管理', exact: true }).click()
+  const form = page.getByRole('dialog', { name: '调整检查批次', exact: true })
+  await form.getByLabel('批次操作', { exact: true }).selectOption('ADD')
+  await form.getByLabel('补入寝室', { exact: true }).selectOption(String(room.id))
+  await form.getByRole('button', { name: '确认变更', exact: true }).click()
+  await expect(form.getByRole('alert')).toContainText('请填写操作原因')
+  await form.getByLabel('操作原因', { exact: true }).fill('模拟遗漏补入，网络恢复后继续')
+  const pattern = '**/api/hygiene/batches/*/rooms/*/add'
+  await page.route(pattern, route => route.abort('failed'))
+  await form.getByRole('button', { name: '确认变更', exact: true }).click()
+  await expect(form.getByRole('alert')).toContainText('暂时无法连接服务')
+  await expect(form.getByLabel('操作原因', { exact: true })).toHaveValue('模拟遗漏补入，网络恢复后继续')
+  await page.unroute(pattern)
+  await post(page, `/api/hygiene/batches/${batch.id}/state`, { version: 0, action: 'CLOSE', reason: '模拟另一窗口关闭' }, 200)
+  await form.getByRole('button', { name: '确认变更', exact: true }).click()
+  await expect(form.getByRole('alert')).toContainText('批次已被其他操作修改')
+  await form.getByRole('button', { name: '核对批次（保留原因）', exact: true }).click()
+  await expect(form).toContainText('关闭'); await expect(form.getByLabel('操作原因', { exact: true })).toHaveValue('模拟遗漏补入，网络恢复后继续')
+  await form.getByRole('button', { name: '确认变更', exact: true }).click(); await expect(form).not.toBeVisible()
+  await expect(page.getByTestId('batch-progress')).toContainText('0 / 1')
+  await page.screenshot({ animations: 'disabled', fullPage: true, path: `../output/playwright/task10-roster-${page.viewportSize()!.width}.png` })
+  await page.getByRole('row').filter({ hasText: 'A101' }).getByRole('button', { name: '移出名单', exact: true }).click()
+  await form.getByLabel('操作原因', { exact: true }).fill('模拟移出后无应检')
+  await form.getByRole('button', { name: '确认变更', exact: true }).click(); await expect(form).not.toBeVisible()
+  await expect(page.getByText('本批次无应检寝室', { exact: true })).toBeVisible()
+  expect((await (await page.request.get(`/api/hygiene/batches/${batch.id}`)).json()).completionRate).toBeNull()
+})
+
+function moveFixtureToPreviousWeek(id: number) {
+  expect(Number.isSafeInteger(id) && id > 0).toBeTruthy()
+  const args = ['compose', '--env-file', 'deploy/.env', '-f', 'deploy/compose.yaml', 'exec', '-T', 'mysql', 'sh', '-c', 'MYSQL_PWD="$MYSQL_PASSWORD" exec mysql --batch --skip-column-names --default-character-set=utf8mb4 -u apartment_app apartment_test']
+  const cwd = fileURLToPath(new URL('../..', import.meta.url))
+  expect(execFileSync('docker', args, { cwd, input: 'SELECT DATABASE();', encoding: 'utf8' }).trim()).toBe('apartment_test')
+  // Time-only fixture: all state changes, authorizations and publication still use real APIs/UI.
+  execFileSync('docker', args, { cwd, input: `UPDATE hygiene_batch SET iso_year=FLOOR(YEARWEEK(DATE_SUB(week_start,INTERVAL 7 DAY),3)/100), iso_week=MOD(YEARWEEK(DATE_SUB(week_start,INTERVAL 7 DAY),3),100), week_start=DATE_SUB(week_start,INTERVAL 7 DAY) WHERE id=${id};`, stdio: ['pipe', 'pipe', 'pipe'] })
+}
+
+test('历史批次经系统管理员授权后宿管沿原周补录且重复跨周准备不撤销授权', async ({ page, browser }) => {
+  await fixtures(page); const batch = await post(page, '/api/hygiene/batches/current/prepare', {}, 200)
+  const context = await browser.newContext({ viewport: page.viewportSize()! }); const manager = await context.newPage()
+  try {
+    await login(manager, 'dorm_manager')
+    const room = (await (await manager.request.get(`/api/hygiene/batches/${batch.id}/rooms?q=A102`)).json()).items[0]
+    await post(manager, `/api/hygiene/batches/${batch.id}/rooms/${room.roomId}/draft`, { version: 0, dimensions: [{ dimensionId: batch.dimensions[0].id, value: '87' }] }, 200)
+    moveFixtureToPreviousWeek(batch.id)
+    await page.goto('/inspections'); await page.getByRole('button', { name: '准备本周检查', exact: true }).click()
+    await page.getByRole('button', { name: '确认准备本周', exact: true }).click(); await expect(page.getByTestId('batch-progress')).toBeVisible()
+    await page.getByRole('button', { name: '历史批次', exact: true }).click()
+    const picker = page.getByRole('dialog', { name: '选择检查批次', exact: true })
+    await picker.getByRole('row').filter({ hasText: '关闭' }).getByRole('button', { name: '进入批次', exact: true }).click()
+    await expect(page.getByRole('heading', { name: '历史卫生检查', exact: true })).toBeVisible()
+    await page.getByRole('button', { name: '批次管理', exact: true }).click()
+    const form = page.getByRole('dialog', { name: '调整检查批次', exact: true })
+    await form.getByLabel('批次操作', { exact: true }).selectOption('REOPEN')
+    await form.getByLabel('操作原因', { exact: true }).fill('模拟原周漏检授权补录')
+    await form.getByRole('button', { name: '确认变更', exact: true }).click(); await expect(form).not.toBeVisible()
+    await expect(page.getByText(/已授权历史补录：/)).toBeVisible()
+    await post(page, '/api/hygiene/batches/current/prepare', {}, 200); await post(page, '/api/hygiene/batches/current/prepare', {}, 200)
+    await manager.goto('/inspections'); await manager.getByRole('button', { name: '历史批次', exact: true }).click()
+    const managerPicker = manager.getByRole('dialog', { name: '选择检查批次', exact: true })
+    await managerPicker.getByRole('row').filter({ hasText: '已授权历史补录' }).getByRole('button', { name: '进入批次', exact: true }).click()
+    await expect(manager.getByRole('heading', { name: '历史卫生检查', exact: true })).toBeVisible()
+    await expect(manager.getByRole('button', { name: '批次管理', exact: true })).toHaveCount(0)
+    await manager.getByTestId('personal-drafts').getByRole('button', { name: '恢复草稿', exact: true }).click()
+    const entry = manager.getByRole('dialog', { name: '寝室正式评分', exact: true })
+    await expect(entry.getByLabel('地面分值', { exact: true })).toHaveValue('87')
+    await entry.getByLabel('摆放分值', { exact: true }).fill('90'); await entry.getByLabel('整洁分值', { exact: true }).fill('70')
+    await entry.getByRole('button', { name: '提交正式评分', exact: true }).click(); await expect(entry).not.toBeVisible()
+    await expect(manager.getByTestId('batch-progress')).toContainText('1 / 3')
+    const old = await (await manager.request.get(`/api/hygiene/batches/${batch.id}`)).json()
+    expect(old.weekStart).not.toBe(batch.weekStart); expect(old.schemeId).toBe(batch.schemeId); expect(old.threshold).toBe(batch.threshold)
+    const saved = (await (await manager.request.get(`/api/hygiene/batches/${batch.id}/rooms/${room.roomId}`)).json()).score
+    expect(saved.totalScore).toBe(82.8); expect(new Date(saved.submittedAt).getTime()).toBeGreaterThanOrEqual(new Date(batch.createdAt).getTime())
+    await manager.screenshot({ animations: 'disabled', fullPage: true, path: `../output/playwright/task10-history-${page.viewportSize()!.width}.png` })
+    await manager.getByRole('button', { name: '返回本周', exact: true }).click(); await expect(manager.getByRole('heading', { name: '本周卫生检查', exact: true })).toBeVisible()
+    await expect(manager.getByTestId('batch-progress')).toContainText('0 / 3')
+  } finally { await context.close() }
+})
+
 test('宿管显式准备当前周、按固定维度评分并查看真实进度，系统管理员只读评分', async ({ page, browser }) => {
   const scheme = await fixtures(page)
   const context = await browser.newContext({ viewport: page.viewportSize()! }); const manager = await context.newPage()

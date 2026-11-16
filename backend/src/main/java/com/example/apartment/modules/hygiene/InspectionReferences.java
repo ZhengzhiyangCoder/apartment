@@ -11,9 +11,10 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional(propagation = Propagation.MANDATORY)
 public class InspectionReferences {
     private final BatchMapper batches;
-    public InspectionReferences(BatchMapper batches) { this.batches=batches; }
-    public void requireBuildingFinished(long id) { requireFinished(batches.unfinished(id,null)); }
-    public void requireRoomFinished(long id) { requireFinished(batches.unfinished(null,id)); }
+    private final java.time.Clock clock;
+    public InspectionReferences(BatchMapper batches,java.time.Clock clock) { this.batches=batches;this.clock=clock; }
+    public void requireBuildingFinished(long id) { requireFinished(batches.unfinished(id,null,BatchViews.Week.at(clock.instant()).weekStart())); }
+    public void requireRoomFinished(long id) { requireFinished(batches.unfinished(null,id,BatchViews.Week.at(clock.instant()).weekStart())); }
     private void requireFinished(long count) {
         if(count>0) throw new ApiException(HttpStatus.CONFLICT,"UNFINISHED_INSPECTION","存在开放批次的未检查寝室，请先处理应检事项后再停用");
     }

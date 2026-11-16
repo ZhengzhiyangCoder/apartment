@@ -22,10 +22,11 @@ public class BatchService {
     private final Clock clock;
     private final DraftMapper drafts;
     private final com.fasterxml.jackson.databind.ObjectMapper json;
+    private final com.example.apartment.support.audit.BatchChangeQuery changes;
     public BatchService(BatchMapper batches, SchemeMapper schemes, InspectionHousingQuery housing, AccountAccess accounts, AuditWriter audit, Clock clock,
-            DraftMapper drafts, com.fasterxml.jackson.databind.ObjectMapper json) {
+            DraftMapper drafts, com.fasterxml.jackson.databind.ObjectMapper json, com.example.apartment.support.audit.BatchChangeQuery changes) {
         this.batches=batches; this.schemes=schemes; this.housing=housing; this.accounts=accounts; this.audit=audit; this.clock=clock;
-        this.drafts=drafts; this.json=json;
+        this.drafts=drafts; this.json=json; this.changes=changes;
     }
     @Transactional(readOnly = true)
     public Current current() {
@@ -36,6 +37,12 @@ public class BatchService {
     public Detail prepare(AccountPrincipal actor) {
         accounts.lockBusinessActor(actor, Role.SYSTEM_ADMIN, Role.DORM_MANAGER);
         var now=clock.instant();var week=Week.at(now);
+        // Explicit preparation is also the rollover command. Authorized history is never expired here.
+        for(var expired:batches.expired(week.weekStart())) {
+            batches.state(expired.id(),Status.CLOSED,false,null);
+            audit.record(actor.id(),"BATCH_EXPIRED","BATCH",expired.id(),java.util.Map.of("batch",expired),
+                    java.util.Map.of("batch",require(expired.id()),"reason","准备本周检查时关闭过期普通录入"));
+        }
         var existing=batches.current(week.isoYear(),week.isoWeek());
         if(existing!=null) return view(existing,week);
         var scheme=schemes.active();
@@ -50,6 +57,87 @@ public class BatchService {
     }
     @Transactional(readOnly = true)
     public Detail detail(long id) { return view(require(id),Week.at(clock.instant())); }
+    @Transactional(readOnly=true)
+    public Page list(int page,int size) {
+        requirePage(page,size);var week=Week.at(clock.instant());
+        return new Page(batches.list(size,(long)(page-1)*size).stream().map(b->view(b,week)).toList(),batches.count(),page,size);
+    }
+    @Transactional
+    public Detail state(AccountPrincipal actor, long id, BatchRequests.State input) {
+        accounts.lockAdministrator(actor);
+        var before=require(id);requireVersion(before,input.version());
+        Status status=before.status(), suspendedFrom=null;
+        boolean historical=before.historicalReopened();
+        var week=Week.at(clock.instant());
+        String action;
+        switch(input.action()) {
+            case CLOSE -> {
+                if(status!=Status.OPEN) throw invalidState();
+                status=Status.CLOSED;historical=false;action="BATCH_CLOSED";
+            }
+            case REOPEN -> {
+                if(before.weekStart().isAfter(week.weekStart()) || status==Status.SUSPENDED || scoringAllowed(before,week)) throw invalidState();
+                status=Status.OPEN;historical=before.weekStart().isBefore(week.weekStart());action="BATCH_REOPENED";
+            }
+            case SUSPEND -> {
+                if(status==Status.SUSPENDED) throw invalidState();
+                suspendedFrom=status;status=Status.SUSPENDED;action="BATCH_SUSPENDED";
+            }
+            case RESTORE -> {
+                if(status!=Status.SUSPENDED || before.suspendedFrom()==null) throw invalidState();
+                status=before.suspendedFrom();action="BATCH_RESTORED";
+                if(status==Status.OPEN && before.weekStart().isBefore(week.weekStart()) && !historical) status=Status.CLOSED;
+            }
+            default -> throw invalidState();
+        }
+        batches.state(id,status,historical,suspendedFrom);
+        var result=require(id);
+        audit.record(actor.id(),action,"BATCH",id,java.util.Map.of("batch",before),
+                java.util.Map.of("batch",result,"reason",input.reason().strip()));
+        return view(result,Week.at(clock.instant()));
+    }
+    private void requireVersion(Batch batch,long version) {
+        if(batch.version()!=version) throw new ApiException(HttpStatus.CONFLICT,"BATCH_CHANGED","批次已被其他操作修改，请保留原因并核对最新状态");
+    }
+    private ApiException invalidState() { return new ApiException(HttpStatus.CONFLICT,"INVALID_BATCH_STATE","当前批次状态不支持此操作，请刷新后重新选择"); }
+    @Transactional
+    public Detail adjustRoom(AccountPrincipal actor,long id,long roomId,BatchRequests.Roster input,boolean add) {
+        accounts.lockAdministrator(actor);
+        var before=require(id);requireVersion(before,input.version());
+        var oldRoom=batches.room(id,roomId);
+        if(add) {
+            if(oldRoom!=null) throw new ApiException(HttpStatus.CONFLICT,"ROOM_ALREADY_EXPECTED","该寝室已在应检名单中，请刷新名单");
+            var room=housing.occupiedEnabledRooms().stream().filter(r->r.roomId()==roomId).findFirst()
+                    .orElseThrow(()->new ApiException(HttpStatus.CONFLICT,"ROOM_NOT_ELIGIBLE","仅可补入当前启用且有学生入住的寝室，请核对住宿资料"));
+            batches.addRoom(id,roomId,room.buildingId(),room.buildingName(),room.roomNo());
+        } else {
+            oldRoom=requireRoom(id,roomId);
+            if(oldRoom.scoreId()!=null) throw new ApiException(HttpStatus.CONFLICT,"SCORED_ROOM_REQUIRED","已正式评分的寝室不可从应检名单移除");
+            batches.removeRoom(id,roomId);
+        }
+        batches.incrementVersion(id);
+        var after=require(id);
+        var oldSnapshot=new java.util.HashMap<String,Object>();oldSnapshot.put("batch",before);oldSnapshot.put("room",oldRoom);
+        var newSnapshot=new java.util.HashMap<String,Object>();newSnapshot.put("batch",after);newSnapshot.put("room",batches.room(id,roomId));newSnapshot.put("reason",input.reason().strip());
+        audit.record(actor.id(),add?"BATCH_ROOM_ADDED":"BATCH_ROOM_REMOVED","BATCH",id,oldSnapshot,newSnapshot);
+        return view(after,Week.at(clock.instant()));
+    }
+    @Transactional(readOnly=true)
+    public EligiblePage eligibleRooms(long id,String q,int page,int size) {
+        require(id);requirePage(page,size);
+        if(q.length()>64) throw new ApiException(HttpStatus.BAD_REQUEST,"INVALID_QUERY","关键词最多64字");
+        var included=new java.util.HashSet<>(batches.roomIds(id));var keyword=q.strip();
+        var candidates=housing.occupiedEnabledRooms().stream().filter(r->!included.contains(r.roomId()))
+                .filter(r->r.buildingName().contains(keyword)||r.roomNo().contains(keyword)).toList();
+        return new EligiblePage(candidates.stream().skip((long)(page-1)*size).limit(size).toList(),candidates.size(),page,size);
+    }
+    @Transactional(readOnly=true)
+    public com.example.apartment.support.audit.BatchChangeQuery.Page changes(long id,int page,int size) {
+        require(id);requirePage(page,size);return changes.list(id,page,size);
+    }
+    private void requirePage(int page,int size) {
+        if(page<1 || size<1 || size>100) throw new ApiException(HttpStatus.BAD_REQUEST,"INVALID_QUERY","页码至少为1，每页1–100条");
+    }
     @Transactional(readOnly = true)
     public RoomPage rooms(long id, Long buildingId, String q, Boolean inspected, int page, int size) {
         require(id);
@@ -66,8 +154,7 @@ public class BatchService {
     public Score submit(AccountPrincipal actor, long id, long roomId, ScoreRequests.Submit input) {
         accounts.lockBusinessActor(actor,Role.DORM_MANAGER);
         var now=clock.instant();var batch=require(id);var week=Week.at(now);
-        if(batch.status()!=Status.OPEN || !batch.weekStart().equals(week.weekStart()))
-            throw new ApiException(HttpStatus.CONFLICT,"BATCH_NOT_OPEN","仅当前周开放批次允许普通录分，请刷新批次信息");
+        requireScoringAllowed(batch,week);
         var room=requireRoom(id,roomId);
         if(room.scoreId()!=null) throw alreadyScored();
         var dimensions=schemes.dimensions(batch.schemeId());
@@ -108,8 +195,7 @@ public class BatchService {
     public DraftDtos.Draft saveDraft(AccountPrincipal actor, long id, long roomId, DraftDtos.Save input) {
         accounts.lockBusinessActor(actor,Role.DORM_MANAGER);
         var batch=require(id);var now=clock.instant();
-        if(batch.status()!=Status.OPEN || !batch.weekStart().equals(Week.at(now).weekStart()))
-            throw new ApiException(HttpStatus.CONFLICT,"BATCH_NOT_OPEN","仅当前周开放批次允许暂存，请保留输入并核对批次");
+        requireScoringAllowed(batch,Week.at(now));
         var room=requireRoom(id,roomId);
         if(room.scoreId()!=null) throw alreadyScored();
         var before=drafts.find(actor.id(),id,roomId);
@@ -150,6 +236,12 @@ public class BatchService {
     private Detail view(Batch batch, Week week) {
         var rate=batch.expectedCount()==0?null:BigDecimal.valueOf(batch.inspectedCount()).multiply(BigDecimal.valueOf(100))
                 .divide(BigDecimal.valueOf(batch.expectedCount()),2,RoundingMode.HALF_UP);
-        return new Detail(batch,batch.status()==Status.OPEN && batch.weekStart().equals(week.weekStart()),rate,schemes.dimensions(batch.schemeId()),batches.buildings(batch.id()));
+        return new Detail(batch,scoringAllowed(batch,week),rate,schemes.dimensions(batch.schemeId()),batches.buildings(batch.id()));
+    }
+    private boolean scoringAllowed(Batch batch,Week week) {
+        return batch.status()==Status.OPEN && (batch.weekStart().equals(week.weekStart()) || batch.weekStart().isBefore(week.weekStart()) && batch.historicalReopened());
+    }
+    private void requireScoringAllowed(Batch batch,Week week) {
+        if(!scoringAllowed(batch,week)) throw new ApiException(HttpStatus.CONFLICT,"BATCH_NOT_OPEN","批次不可录分或暂存；仅本周开放或系统管理员已授权重开的历史批次可操作，请保留输入并核对状态");
     }
 }
