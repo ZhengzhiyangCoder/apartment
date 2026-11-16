@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { isNavigationFailure, NavigationFailureType, useRoute, useRouter } from 'vue-router'
 import { ElButton, ElDialog, ElInput } from 'element-plus'
 import { request, write } from '../../lib/http'
 import { currentUser, handleAuthorizationFailure } from '../identity/session'
@@ -29,7 +29,19 @@ function itemLabel(item: CatalogItem) {
 const authorization = (failure: unknown) => handleAuthorizationFailure(failure, router)
 
 const route = useRoute(), record = ref(String(route.query.record ?? ''))
-async function leaveRecord() { record.value = ''; await router.replace({ path: route.path }); await load() }
+async function navigateCatalog(select: () => void) {
+  if (loading.value) return
+  loading.value = true; error.value = ''
+  let selected = false
+  try {
+    const failure = await router.replace({ path: '/housing' })
+    if (route.path !== '/housing' || (failure && !isNavigationFailure(failure, NavigationFailureType.duplicated))) return
+    record.value = ''; select(); selected = true
+  } catch (failure) { error.value = failure instanceof Error ? failure.message : '切换资料失败，请重试' }
+  finally { loading.value = false }
+  if (selected) await load()
+}
+async function leaveRecord() { await navigateCatalog(() => {}) }
 
 async function load(page = 1) {
   if (loading.value) return
@@ -61,13 +73,16 @@ async function load(page = 1) {
   finally { loading.value = false }
 }
 async function switchTab(tab: CatalogKind) {
-  if (loading.value) return
-  record.value = ''; await router.replace({ path: '/housing' }); kind.value = tab; scope.value = null; query.q = ''; query.enabled = ''; success.value = ''; result.value.items = []; load()
+  await navigateCatalog(() => {
+    kind.value = tab; scope.value = null; query.q = ''; query.enabled = ''; success.value = ''; result.value.items = []
+  })
 }
 async function children(item: Building | Room) {
-  record.value = ''; await router.replace({ path: '/housing' }); kind.value = 'name' in item ? 'rooms' : 'beds'
-  scope.value = { id: item.id, label: itemLabel(item), param: 'name' in item ? 'buildingId' : 'roomId' }
-  query.q = ''; query.enabled = ''; success.value = ''; result.value.items = []; load()
+  await navigateCatalog(() => {
+    kind.value = 'name' in item ? 'rooms' : 'beds'
+    scope.value = { id: item.id, label: itemLabel(item), param: 'name' in item ? 'buildingId' : 'roomId' }
+    query.q = ''; query.enabled = ''; success.value = ''; result.value.items = []
+  })
 }
 function edit(mode: 'create' | 'edit' | 'enabled', item: CatalogItem | null = null) {
   target.value = item; action.value = mode; formError.value = ''; success.value = ''

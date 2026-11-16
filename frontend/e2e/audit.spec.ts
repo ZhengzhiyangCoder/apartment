@@ -244,3 +244,24 @@ test('降为宿管后本人旧审计不能把学生资料来源替换为楼栋',
     await expect(page.getByRole('table').getByRole('row')).toHaveCount(1)
   } finally {await context.close()}
 })
+
+test('来源页等待路由校验期间禁止重复分类切换', async ({page}) => {
+  await login(page,'system_admin')
+  const building=(await (await page.request.get('/api/housing/buildings')).json()).items[0]
+  await page.goto(`/housing?kind=buildings&record=${building.id}`)
+  await expect(page.getByText(`已定位记录 #${building.id}`,{exact:true})).toBeVisible()
+  const me=await (await page.request.get('/api/auth/me')).json()
+  const rooms=await (await page.request.get('/api/housing/rooms?size=10')).json()
+  let release!:()=>void,arrived!:()=>void
+  const gate=new Promise<void>(resolve=>{release=resolve}),received=new Promise<void>(resolve=>{arrived=resolve})
+  await page.route('**/api/auth/me',async route=>{arrived();await gate;await route.fulfill({json:me})})
+  await page.route('**/api/housing/rooms?*',async route=>{await gate;await route.fulfill({json:rooms})})
+  try {
+    await page.getByRole('tab',{name:'寝室',exact:true}).click();await received
+    await expect(page.getByRole('tab',{name:'学生资料',exact:true})).toBeDisabled()
+    release();await page.waitForLoadState('networkidle')
+    await expect(page.getByRole('tab',{name:'寝室',exact:true})).toHaveAttribute('aria-selected','true')
+    await expect(page.getByRole('table')).toContainText('A101')
+    await expect(page.getByRole('tab',{name:'学生资料',exact:true})).toBeEnabled()
+  } finally {release();await page.waitForLoadState('networkidle');await page.unroute('**/api/auth/me');await page.unroute('**/api/housing/rooms?*')}
+})
