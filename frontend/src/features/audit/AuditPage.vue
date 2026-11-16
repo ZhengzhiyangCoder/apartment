@@ -17,7 +17,7 @@ const selected=ref<number|null>(null),detail=shallowRef<Detail|null>(null),detai
 const pages=computed(()=>Math.max(1,Math.ceil((result.value?.total??0)/Number(applied.size))))
 const rows=computed(()=>{
   const before=flatten(detail.value?.before??null),after=flatten(detail.value?.after??null)
-  return [...new Set([...Object.keys(before),...Object.keys(after)])].map(key=>({key,before:before[key]??'—',after:after[key]??'—'})).filter(row=>unchanged.value||row.before!==row.after)
+  return [...new Set([...Object.keys(before),...Object.keys(after)])].map(key=>({key,before:before[key]?.text??'—',after:after[key]?.text??'—',beforeRaw:before[key]?.value??null,afterRaw:after[key]?.value??null})).filter(row=>unchanged.value||row.beforeRaw!==row.afterRaw)
 })
 async function load() {
   const id=++listRequest;loading.value=true;error.value='';result.value=null
@@ -77,7 +77,7 @@ onUnmounted(()=>{listRequest++;detailRequest++})
       <div class="audit-links"><RouterLink v-for="link in detail.references" :key="link.path" :to="link.path" class="text-button">{{ link.label }}</RouterLink></div>
       <p class="form-hint">下方为操作发生时的必要字段快照；来源页面显示当前业务记录及其历史。操作者名称为当前账号显示名称。</p>
       <label class="audit-unchanged"><input v-model="unchanged" type="checkbox" /> 显示未变化字段</label>
-      <div class="account-table-wrap"><table class="account-table audit-comparison" aria-label="操作前后对照"><thead><tr><th>字段</th><th>操作前</th><th>操作后</th></tr></thead><tbody><tr v-for="row in rows" :key="row.key" :class="{changed:row.before!==row.after}"><th>{{ row.key }}</th><td>{{ row.before }}</td><td>{{ row.after }}</td></tr></tbody></table></div>
+      <div class="account-table-wrap"><table class="account-table audit-comparison" aria-label="操作前后对照"><thead><tr><th>字段</th><th>操作前</th><th>操作后</th></tr></thead><tbody><tr v-for="row in rows" :key="row.key" :class="{changed:row.beforeRaw!==row.afterRaw}"><th>{{ row.key }}</th><td :title="String(row.beforeRaw??'—')">{{ row.before }}</td><td :title="String(row.afterRaw??'—')">{{ row.after }}</td></tr></tbody></table></div>
       <p v-if="!rows.length" class="form-hint">必要字段没有变化，请结合动作及业务记录查看。</p>
     </template>
     <div class="form-actions"><ElButton @click="close">关闭详情</ElButton></div>

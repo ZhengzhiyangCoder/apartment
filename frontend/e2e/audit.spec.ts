@@ -176,3 +176,49 @@ test('账号和学生资料来源保留精确定位，权限撤销后审计会�
     await other.getByRole('button',{name:'刷新记录',exact:true}).click();await expect(other).toHaveURL(/\/login\?accountChanged=1$/)
   } finally {await context.close()}
 })
+
+test('审计按原值识别变化，自由文本不套用枚举或时间翻译', async ({page}) => {
+  await login(page,'system_admin')
+  for(const [before,after] of [['ACTIVE','启用'],['2026-11-16T','2026-11-16T01:00:00Z']]) {
+    const item=await post(page,'/api/housing/buildings',{name:before})
+    await post(page,`/api/housing/buildings/${item.id}`,{name:after,version:0},200)
+    const entry=await audit(page,'BUILDING_UPDATED');await page.goto(`/audit?record=${entry.id}`)
+    const table=page.getByRole('table',{name:'操作前后对照',exact:true})
+    await expect(table.getByText(before!,{exact:true})).toBeVisible();await expect(table.getByText(after!,{exact:true})).toBeVisible()
+    await expect(page.getByText('必要字段没有变化，请结合动作及业务记录查看。',{exact:true})).toHaveCount(0)
+  }
+})
+
+function moveFixtureToPreviousWeek(id: number) {
+  expect(Number.isSafeInteger(id)&&id>0).toBeTruthy()
+  const args=['compose','--env-file','deploy/.env','-f','deploy/compose.yaml','exec','-T','mysql','sh','-c','MYSQL_PWD="$MYSQL_PASSWORD" exec mysql --batch --skip-column-names --default-character-set=utf8mb4 -u apartment_app apartment_test']
+  const cwd=fileURLToPath(new URL('../..',import.meta.url))
+  expect(execFileSync('docker',args,{cwd,input:'SELECT DATABASE();',encoding:'utf8'}).trim()).toBe('apartment_test')
+  // Reuse the approved clock fixture boundary; business writes still use public APIs.
+  execFileSync('docker',args,{cwd,input:`UPDATE hygiene_batch SET iso_year=FLOOR(YEARWEEK(DATE_SUB(week_start,INTERVAL 7 DAY),3)/100), iso_week=MOD(YEARWEEK(DATE_SUB(week_start,INTERVAL 7 DAY),3),100), week_start=DATE_SUB(week_start,INTERVAL 7 DAY) WHERE id=${id};`,stdio:['pipe','pipe','pipe']})
+}
+test('审计来源加载期间切换批次会取消旧的成绩自动定位', async ({page}) => {
+  const f=await workflow(page),entry=await audit(page,'SCORE_CORRECTED')
+  moveFixtureToPreviousWeek(f.batch.id)
+  const current=await post(page,'/api/hygiene/batches/current/prepare',{},200)
+  await login(page,'dorm_manager')
+  await post(page,`/api/hygiene/batches/${current.id}/rooms/${f.second.id}/score`,{dimensions:[{dimensionId:current.dimensions[0].id,score:95}]})
+  await login(page,'system_admin')
+  const body=await (await page.request.get(`/api/hygiene/batches/${f.batch.id}/rooms?size=10`)).json()
+  let release!:()=>void,arrived!:()=>void,finished!:()=>void
+  const gate=new Promise<void>(resolve=>{release=resolve}),received=new Promise<void>(resolve=>{arrived=resolve}),done=new Promise<void>(resolve=>{finished=resolve})
+  const pattern=`**/api/hygiene/batches/${f.batch.id}/rooms?*`
+  await page.route(pattern,async route=>{arrived();await gate;await route.fulfill({json:body});finished()})
+  try {
+    await page.goto(`/audit?record=${entry.id}`)
+    await page.getByRole('dialog',{name:'操作审计详情',exact:true}).getByRole('link',{name:'正式成绩与更正明细',exact:true}).click()
+    await received;await page.getByRole('button',{name:'历史批次',exact:true}).click()
+    await page.getByRole('dialog',{name:'选择检查批次',exact:true}).getByRole('row').filter({hasText:current.weekStart}).getByRole('button',{name:'进入批次',exact:true}).click()
+    await expect(page.getByRole('table',{name:'本周应检寝室',exact:true})).toContainText('95.00')
+    release();await done
+    // Settle this deliberately held network response and any resulting detail fetch before asserting absence.
+    await page.waitForLoadState('networkidle')
+    await expect(page.getByRole('dialog',{name:'寝室正式评分',exact:true})).toHaveCount(0)
+    await expect(page.getByRole('table',{name:'本周应检寝室',exact:true})).toContainText('95.00')
+  } finally {release();await done;await page.unroute(pattern)}
+})

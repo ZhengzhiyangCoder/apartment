@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, onUnmounted, reactive, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElButton, ElDialog, ElInput } from 'element-plus'
 import { HttpError, request, write } from '../../lib/http'
@@ -188,9 +188,13 @@ const route = useRoute()
 onMounted(async () => {
   const batch = Number(route.query.batch), room = Number(route.query.room)
   if (Number.isSafeInteger(batch) && batch > 0) selectedBatchId.value = batch
-  await load(); void loadDrafts()
-  if (selectedBatchId.value && Number.isSafeInteger(room) && room > 0) await openRoom(room, selectedBatchId.value)
+  const initialRequest = loadRequest + 1
+  void loadDrafts(); await load()
+  // A user-selected batch, a newer refresh or leaving the page cancels the URL's initial intent.
+  if (initialRequest === loadRequest && selectedBatchId.value === batch && current.value?.batch?.id === batch
+      && Number.isSafeInteger(room) && room > 0) await openRoom(room, batch)
 })
+onUnmounted(() => { loadRequest++ })
 </script>
 
 <template>

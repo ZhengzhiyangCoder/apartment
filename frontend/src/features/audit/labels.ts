@@ -16,12 +16,26 @@ const fields: Record<string,string> = { id:'记录编号', username:'账号', di
 const values: Record<string,string> = { SYSTEM_ADMIN:'系统管理员', DORM_MANAGER:'宿舍管理员', STUDENT:'学生', MAINTAINER:'维修人员', TRANSFER:'调寝', CHECKOUT:'退宿', PENDING_ASSIGNMENT:'待分配', PENDING:'待处理', IN_PROGRESS:'处理中', COMPLETED:'已完成', CANCELLED:'已取消', DRAFT:'草稿', ACTIVE:'启用', ARCHIVED:'归档', OPEN:'开放 / 未关闭', CLOSED:'关闭', SUSPENDED:'停检', PLUMBING:'水暖', ELECTRICAL:'电路', DOORS:'门窗', FURNITURE:'家具', OTHER:'其他' }
 export const time = (value: string) => new Date(value).toLocaleString('zh-CN',{hour12:false})
 export type Snapshot = null | string | number | boolean | Snapshot[] | { [key: string]: Snapshot }
-export function flatten(data: Snapshot, prefix='', result: Record<string,string>={}) {
-  if (data === null) { if(prefix) result[prefix]='—'; return result }
-  if (typeof data !== 'object') { result[prefix]=typeof data==='boolean'?(data?'是':'否'): typeof data==='string'?(values[data] ?? (/^\d{4}-\d{2}-\d{2}T/.test(data)?time(data):data)):String(data);return result }
+type Scalar = string | number | boolean | null
+interface Cell { text:string; value:Scalar }
+const enumFields = new Set(['role','status','category','endReason','suspendedFrom'])
+const timeFields = new Set(['startedAt','endedAt','assignedAt','completedAt','activatedAt','submittedAt','createdAt','updatedAt','verifiedAt','closedAt'])
+function display(value:Scalar,field:string):string {
+  if(value===null) return '—'
+  if(typeof value==='boolean') return value?'是':'否'
+  if(typeof value!=='string') return String(value)
+  if(enumFields.has(field)) return values[value]??value
+  if(timeFields.has(field) && !Number.isNaN(Date.parse(value))) return time(value)
+  return value
+}
+export function flatten(data:Snapshot,prefix='',result:Record<string,Cell>={},field='') {
+  if(data===null || typeof data!=='object') {
+    if(prefix) result[prefix]={text:display(data,field),value:data}
+    return result
+  }
   for(const [key,value] of Object.entries(data)) {
-    const label=Array.isArray(data)?`第 ${Number(key)+1} 项`:(fields[key] ?? key)
-    flatten(value,prefix?`${prefix} · ${label}`:label,result)
+    const label=Array.isArray(data)?`第 ${Number(key)+1} 项`:(fields[key]??key)
+    flatten(value,prefix?`${prefix} · ${label}`:label,result,key)
   }
   return result
 }
