@@ -182,3 +182,11 @@
 - [更正服务](../../backend/src/main/java/com/example/apartment/modules/hygiene/CorrectionService.java)、[共用计分](../../backend/src/main/java/com/example/apartment/modules/hygiene/ScoreCalculation.java)、[V15](../../backend/src/main/resources/db/migration/V15__score_corrections.sql)、[V16](../../backend/src/main/resources/db/migration/V16__rectification_correction_trace.sql)、[更正组件](../../frontend/src/features/hygiene/ScoreCorrections.vue)、[API测试](../../backend/src/test/java/com/example/apartment/hygiene/ScoreCorrectionHttpTest.java)、[浏览器测试](../../frontend/e2e/corrections.spec.ts)。
 - [测试](../../docs/testing.md)：101后端/124全量双尺寸Chrome及构建，空库/增量迁移/原数据保留、普通seed与重启通过；[API](../../docs/api.md)、[数据库](../../docs/database.md)、[演示](../../docs/demo.md)、[运行](../../docs/local-run.md)同步。
 - [截图](../../output/playwright/)task14-history/linked/conflict两尺寸及demo-history/rectification共8张。复用原项目工具/锁/审计/统计，无新依赖；一次性.runtime核验不登记全局资产。下一项15。
+
+
+## 任务15审计查询与业务追溯（2026-11-16）
+
+- [任务票](../../.scratch/dorm-management/issues/15-audit-query.md)、[归档卡](../task-cards/completed/20261116-task15-implement.md)、[实施](../logs/20261116-task15-implement.md)、[双轴审查](../logs/20261116-task15-review.md)。
+- [审计查询](../../backend/src/main/java/com/example/apartment/support/audit/AuditQuery.java)、[审计页面](../../frontend/src/features/audit/AuditPage.vue)、[HTTP测试](../../backend/src/test/java/com/example/apartment/audit/AuditHttpTest.java)、[Chrome测试](../../frontend/e2e/audit.spec.ts)。
+- [测试](../../docs/testing.md)：106后端/142全量双尺寸Chrome、18项专项及构建，原V1–V16不变、演示重启前后业务/图片保留；[接口](../../docs/api.md)、[数据库](../../docs/database.md)、[演示](../../docs/demo.md)、[运行](../../docs/local-run.md)已同步。
+- [截图](../../output/playwright/)task15-details/score-source/own两尺寸及demo-list/correction，共8张。复用现有工具/公开接口/隔离时间夹具，无新依赖；一次性.runtime脚本不登记全局资产。下一项16。

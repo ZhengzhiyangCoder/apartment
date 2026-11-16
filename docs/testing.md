@@ -244,3 +244,17 @@ API与浏览器顺序使用apartment_test，演示apartment_demo未清空；测�
 - [截图](../output/playwright/)task14-history/linked/conflict各两尺寸，加demo-history/rectification，共8张；实际控件可达，无页面横向溢出。最终demo/test各16个成功迁移，test_临时对象0，5175/8082退出，正常5174/8081/3308保留。
 
 本票US33/41与AC13/19/21/22/23分工已闭环；15全局审计、17规模性能、18整体交付尚未完成。批准Spec/工程结构/原型/依赖未变，未扩大平台或部署结论。
+
+
+## 任务15最终验证
+
+- `./scripts/backend.sh -B verify`：**106项**公开HTTP/真实MySQL全量通过（原101+审计5），JAR通过；.runtime/task15-backend-final.log。V1–V16校验通过，无新迁移。
+- `npm --prefix frontend run build`：vue-tsc/Vite通过，.runtime/task15-frontend-final.log；批准依赖不变。
+- `npm --prefix frontend run test:e2e`：**142项**全量真实Chrome通过（原124+9场景×2），1366×768与1920×1080，.runtime/task15-browser-final.log。修复专项18项通过，task15-navigation-green.log；不重复计数。与后端顺序执行。
+- API覆盖实际账号/住宿/派单重分配/处理/方案/名单/正式评分/更正/整改操作后的查询，必要原因与前后值；管理员全局、宿管本人、学生/维修无统一审计；来源原授权；筛选/分页/排序白名单与时间包含/排除边界；私有草稿/图片/无关人员字段最小化；过期版本/审计故障无假成功，活动引用阻止停用，结束后停用仍保留原记录及更正历史，停用操作者旧会话失效。
+- Chrome覆盖查询分页与空态、改名停用后的精确来源、调寝/重分配/名单/更正/整改/方案跳转、四角色范围、查询/详情失败重试、迟到详情不覆盖、权限撤销，以及自由文本原值、批次切换时旧定位取消、降权来源分类和分类导航忙状态四项审查回归。
+- 红绿证据task15-red-api/trace/filters/sources/browser/links；[独立审查](../.codex-work/logs/20261116-task15-review.md)Standards 0硬违例/2个P2启发式、Spec 4个P2，均已真实红绿及独立复核关闭。旧楼名ACTIVE→启用不可被翻译隐藏；延迟A加载时切换B不得错误自动打开B成绩；降权旧学生资料来源必须拒绝、未知分类明确报错；清理来源路由期间锁定分类切换，取消导航不继续查询。初轮全量为修正而中断，不计作通过。
+- 演示普通重启前后与task14-demo-after完整业务/图片hash一致，无seed、迁移或新增业务；现有50条审计可查，学生/维修403，实际5174Chrome从审计定位A103原50→55→85更正历史。原演示无重分配记录，该流程在固定隔离库公开API/实际Chrome已验证。
+- [截图](../output/playwright/)task15-details/score-source/own各两尺寸，加demo-list/correction共8张；无页面横向溢出。最终demo/test各16项成功迁移、临时test_对象0，测试5175/8082退出，正常5174/8081/3308保留。
+
+本票US42及AC19/21/22/23分工完成；16工作台、17规模性能、18整体交付尚未完成。未扩大平台或部署结论。
