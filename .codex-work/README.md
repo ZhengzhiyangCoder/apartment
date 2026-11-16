@@ -11,8 +11,8 @@
 - 当前待办：[current.md](todos/current.md)
 - 完成归档：[completed.md](todos/completed.md)
 - 版本库建立：[Git 与 GitHub 私有仓库](task-cards/completed/20261111-git-github.md)，[远端仓库](https://github.com/ZhengzhiyangCoder/apartment)（main）
-- 本轮完成：[任务06：派单与维修闭环](task-cards/completed/20261116-task06-implement.md)；此前[任务05](task-cards/completed/20261113-task05-implement.md)、[任务04](task-cards/completed/20261112-task04-implement.md)、 [任务 01](task-cards/completed/20261111-task01-implement.md)、[任务 02](task-cards/completed/20261111-task02-implement.md)、[任务 03](task-cards/completed/20261111-task03-implement.md) 已验收
-- 下一任务：[07 评分方案与版本](../.scratch/dorm-management/issues/07-scoring-schemes.md)（前置02已完成）
+- 本轮完成：[任务07：评分方案与版本](task-cards/completed/20261116-task07-implement.md)；此前[任务06](task-cards/completed/20261116-task06-implement.md)、[任务05](task-cards/completed/20261113-task05-implement.md)、[任务04](task-cards/completed/20261112-task04-implement.md)、 [任务 01](task-cards/completed/20261111-task01-implement.md)、[任务 02](task-cards/completed/20261111-task02-implement.md)、[任务 03](task-cards/completed/20261111-task03-implement.md) 已验收
+- 下一任务：[08 当前周批次、首笔正式评分与检查进度](../.scratch/dorm-management/issues/08-weekly-first-score.md)（前置04/07已完成）
 - 已批准拆分：[拆分归档](task-cards/completed/20261111-task-breakdown.md)（18 项正式票已发布）
 - 开发任务：[18 项正式任务总览](../.scratch/dorm-management/task-breakdown.md)（单项正文、依赖、故事及验收映射）
 - 界面基准记录：[HTML 原型后续细化](task-cards/active/20261111-ui-prototype.md)（沿第一版，在相关业务任务中承接）
@@ -22,7 +22,7 @@
 - 规格确认记录：[审核结论](../.scratch/dorm-management/spec-review.md)（全部审核项已确认，V1.0 已定稿）
 - 已完成访谈：[需求校核](task-cards/completed/20261111-requirements-grilling.md)
 - 已完成任务：[Spec 审核与定稿](task-cards/completed/20261111-spec-review.md)、[工程结构定稿](task-cards/completed/20261111-engineering-structure.md)、[工程技能配置](task-cards/completed/20261111-engineering-skills-setup.md)
-- 最近日志：[任务06实现](logs/20261116-task06-implement.md)、[任务06审查](logs/20261116-task06-review.md)、[任务05实现](logs/20261113-task05-implement.md)、[任务05审查](logs/20261113-task05-review.md)、[任务 04 实现](logs/20261112-task04-implement.md)、[任务 04 审查](logs/20261112-task04-review.md)、[任务 03 实现](logs/20261111-task03-implement.md)、[任务 03 审查](logs/20261111-task03-review.md)、[任务 02 实现](logs/20261111-task02-implement.md)、[任务 02 审查](logs/20261111-task02-review.md)、[Git 与 GitHub 建立](logs/20261111-git-github.md)、[任务 01 实现](logs/20261111-task01-implement.md)、[双轴审查](logs/20261111-task01-review.md)
+- 最近日志：[任务07实现](logs/20261116-task07-implement.md)、[任务07审查](logs/20261116-task07-review.md)、[任务06实现](logs/20261116-task06-implement.md)、[任务06审查](logs/20261116-task06-review.md)、[任务05实现](logs/20261113-task05-implement.md)、[任务05审查](logs/20261113-task05-review.md)、[任务 04 实现](logs/20261112-task04-implement.md)、[任务 04 审查](logs/20261112-task04-review.md)、[任务 03 实现](logs/20261111-task03-implement.md)、[任务 03 审查](logs/20261111-task03-review.md)、[任务 02 实现](logs/20261111-task02-implement.md)、[任务 02 审查](logs/20261111-task02-review.md)、[Git 与 GitHub 建立](logs/20261111-git-github.md)、[任务 01 实现](logs/20261111-task01-implement.md)、[双轴审查](logs/20261111-task01-review.md)
 - 运行与验证：[本地运行](../docs/local-run.md)、[模拟账号](../docs/demo.md)、[测试证据](../docs/testing.md)
 - 工程定稿：[工程结构讨论与定稿](logs/20261111-engineering-structure.md)
 - 界面选择：[选定第一版](logs/20261111-ui-selection.md)
@@ -33,4 +33,4 @@
 - 配置记录：[工程配置完成记录](logs/20261111-engineering-skills-setup.md)
 - 资料索引：[asset-index.md](indexes/asset-index.md)
 
-`.scratch/` 存放功能规格与开发任务；本目录保存执行记录和项目级导航。附件内容不自动构成执行授权。工程结构与 Spec 均已确认并定稿，第一版 HTML 原型及“栖居”名称已选定；18 项任务已获批准并正式发布；01–06已完成并验证，07–18待开始。
+`.scratch/` 存放功能规格与开发任务；本目录保存执行记录和项目级导航。附件内容不自动构成执行授权。工程结构与 Spec 均已确认并定稿，第一版 HTML 原型及“栖居”名称已选定；18 项任务已获批准并正式发布；01–07已完成并验证，08–18待开始。

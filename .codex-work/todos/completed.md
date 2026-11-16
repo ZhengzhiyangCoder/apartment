@@ -84,3 +84,8 @@
 - 用户确认完整业务方案、Codex 主导开发及无需教学解释。
 - 后续明确先审核 spec；已转入规格审核，未开始实现。
 - [已完成访谈任务](../task-cards/completed/20261111-requirements-grilling.md)、[访谈日志](../logs/20261111-requirements-grilling.md)。
+
+## 2026-11-16 · 任务07评分方案与版本
+
+- 完成评分维度/权重/阈值、草稿、启用与历史版本、复制调整、权限及审计；50后端/58全量浏览器、构建、空库V1–V9、演示升级与重启持久化通过，独立双轴0发现。实现6a14939提交本地main，未推送；真实批次冻结由08承接。
+- [任务票](../../.scratch/dorm-management/issues/07-scoring-schemes.md)、[归档卡](../task-cards/completed/20261116-task07-implement.md)、[实施](../logs/20261116-task07-implement.md)、[审查](../logs/20261116-task07-review.md)。下一项08；总索引跨目录同步仍在current待办。
