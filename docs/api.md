@@ -277,4 +277,16 @@ SCORE_DRAFT_SAVED审计与暂存同事务，target_type=BATCH；仅记录roomId�
 
 正式评分在原提交事务内按`totalScore < threshold`判定，不由列表触发，不按周月或楼栋均分判定。首次低分建OPEN事件；后续同寝室低分复用事件并追加评分依据，清除当前核实标记（既有核实日志保留），要求重新核实。后续合格不自动关闭。关闭后新的检查低分另建事件。批次停检/恢复不删除或自动关闭整改，详情显示批次状态；历史补录仍关联原周及原阈值。
 
-页面`/rectifications`默认查未关闭，可切换全部/已关闭并按楼名房号筛选；跟进弹窗保留失败输入，版本冲突后显式重新载入核对。关闭不删历史，新增低分后仍须重新核实。成绩更正及“触发成绩已更正”提示由14继续实现。
+页面`/rectifications`默认查未关闭，可切换全部/已关闭并按楼名房号筛选；跟进弹窗保留失败输入，版本冲突后显式重新载入核对。关闭不删历史，新增低分后仍须重新核实。成绩更正及“触发成绩已更正”提示见下节任务14。
+
+## 成绩更正（任务14）
+
+- `GET /api/hygiene/scores/{id}`：管理角色读取当前完整正式成绩（含version，初始0）；不存在404。
+- `GET /api/hygiene/scores/{id}/corrections?page=1&size=10`：管理角色查看更正历史，按版本倒序；items/total/page/size，页码≥1、每页1–100，超大页返回空items。每条含scoreId、version、actorId/actorName快照、reason、createdAt、完整before/after（原身份、时间、阈值、维度、权重、分值和总分）。
+- `POST /api/hygiene/scores/{id}/corrections`：仅SYSTEM_ADMIN，需CSRF、实时有效权限；请求`{version: 0, reason: "核对原检查记录", dimensions: [{dimensionId: 1, score: 90}]}`。version必填非负、reason非空白≤1000字；原批次全部维度恰好一次、分值整数0–100。服务器沿用原方案重新计算，不接受改变寝室/批次/阈值的业务操作。
+
+成功200返回同一id的当前评分，version+1；不改原提交人、实际提交时间、归属周及检查次数。旧版本409 `SCORE_CHANGED`，无评分404，非法输入400，无写权403、失效会话401。CLOSED和SUSPENDED均允许管理员留痕更正，但SUSPENDED仍排除学生/管理端有效统计。历史与当前版本更新、明细、整改和审计SCORE_CORRECTED同事务。
+
+低于固定阈值时创建/复用OPEN整改；同一事件已有scoreId关联时保留原触发快照，追加管理轨迹并清除当前核实。更正为达标且关联OPEN事件时保存CORRECTED日志、递增事件版本并清除核实；跟进/历史核实不删，必须重新核实关闭。已关闭事件保持关闭，后续更正再次低分可另起事件。triggers新增corrected（评分version>0），同时展示原totalScore与currentScore；“触发成绩已更正”不会代替人工核实。
+
+页面入口：本周卫生检查 → 当前/历史批次 → 查看结果。管理员可更正，宿管只读当前值和分页前后记录；冲突/断网保留分值与原因，显式“核对最新成绩（保留输入）”后再提交。学生/维修人员不能访问更正及其历史接口。

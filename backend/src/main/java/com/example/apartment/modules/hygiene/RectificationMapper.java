@@ -21,6 +21,7 @@ public interface RectificationMapper {
     void create(long roomId,long buildingId,String buildingName,String roomNo,Instant now);
     @Select("SELECT LAST_INSERT_ID()") long insertedId();
     @Update("UPDATE hygiene_rectification SET version=version+1,updated_at=#{now},verified_at=NULL WHERE id=#{id}") void retrigger(long id,Instant now);
+    @Select("SELECT EXISTS(SELECT 1 FROM hygiene_rectification_trigger WHERE event_id=#{id} AND score_id=#{scoreId})") boolean linked(long id,long scoreId);
     @Insert("INSERT INTO hygiene_rectification_trigger(event_id,score_id,total_score,threshold,triggered_at) VALUES(#{id},#{scoreId},#{score},#{threshold},#{now})")
     void trigger(long id,long scoreId,BigDecimal score,BigDecimal threshold,Instant now);
     @Insert("INSERT INTO hygiene_rectification_log(event_id,action,actor_id,actor_name,note,created_at) VALUES(#{id},#{action},#{actor},#{actorName},#{note},#{now})")
@@ -28,7 +29,7 @@ public interface RectificationMapper {
     @Update("UPDATE hygiene_rectification SET status=#{status},version=version+1,updated_at=#{now},verified_at=#{verified},closed_at=#{closed} WHERE id=#{id}")
     void update(long id,Status status,Instant now,Instant verified,Instant closed);
     @Select("SELECT t.score_id,s.batch_id,b.iso_year,b.iso_week,b.week_start,b.scheme_id,b.scheme_name,b.status AS batch_status,"
-            +"t.total_score,t.threshold,s.total_score AS current_score,s.submitted_at,t.triggered_at FROM hygiene_rectification_trigger t"
+            +"t.total_score,t.threshold,s.total_score AS current_score,s.submitted_at,t.triggered_at,(s.version>0) AS corrected FROM hygiene_rectification_trigger t"
             +" JOIN hygiene_score s ON s.id=t.score_id JOIN hygiene_batch b ON b.id=s.batch_id WHERE t.event_id=#{id} ORDER BY t.triggered_at,t.score_id")
     List<Trigger> triggers(long id);
     @Select("SELECT id,action,actor_id,actor_name,note,created_at FROM hygiene_rectification_log WHERE event_id=#{id} ORDER BY id") List<Log> logs(long id);

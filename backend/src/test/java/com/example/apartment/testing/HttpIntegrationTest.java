@@ -41,6 +41,7 @@ public abstract class HttpIntegrationTest {
         jdbc.update("DELETE FROM hygiene_rectification_trigger");
         jdbc.update("DELETE FROM hygiene_rectification");
         jdbc.update("DELETE FROM hygiene_score_draft");
+        jdbc.update("DELETE FROM hygiene_score_correction");
         jdbc.update("DELETE FROM hygiene_score_dimension");
         jdbc.update("DELETE FROM hygiene_score");
         jdbc.update("DELETE FROM hygiene_batch_room");

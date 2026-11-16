@@ -23,7 +23,7 @@ public final class BatchViews {
     public record Current(@com.fasterxml.jackson.annotation.JsonUnwrapped Week week, Detail batch) {}
     public record Building(long id, String name) {}
     public record Room(long roomId, long buildingId, String buildingName, String roomNo, Long scoreId, BigDecimal totalScore) {}
-    public record ScoreRow(long id, long batchId, long roomId, BigDecimal totalScore, BigDecimal threshold, long submittedBy, Instant submittedAt) {}
+    public record ScoreRow(long id, long batchId, long roomId, BigDecimal totalScore, BigDecimal threshold, long submittedBy, Instant submittedAt, long version) {}
     public record ScoredDimension(long dimensionId, String name, BigDecimal weight, int score, int sortOrder) {}
     public record Score(@com.fasterxml.jackson.annotation.JsonUnwrapped ScoreRow summary, List<ScoredDimension> dimensions) {}
     public record RoomDetail(Room room, Score score) {}

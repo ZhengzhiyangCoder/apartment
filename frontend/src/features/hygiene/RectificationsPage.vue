@@ -11,7 +11,7 @@ let applied = { status: 'OPEN', q: '' }, requestId = 0, detailRequestId = 0
 const selectedId = ref<number | null>(null), detail = ref<RectificationDetail | null>(null), detailLoading = ref(false)
 const saving = ref(false), detailError = ref(''), success = ref(''), note = ref(''), operation = ref('follow-ups')
 const pages = computed(() => Math.max(1, Math.ceil((result.value?.total ?? 0) / 10)))
-const actionLabel: Record<RectificationLog['action'], string> = { TRIGGERED: '低分触发', FOLLOW_UP: '整改跟进', VERIFIED: '核实结果', CLOSED: '关闭说明' }
+const actionLabel: Record<RectificationLog['action'], string> = { TRIGGERED: '低分触发', FOLLOW_UP: '整改跟进', VERIFIED: '核实结果', CLOSED: '关闭说明', CORRECTED: '成绩更正' }
 const batchLabel = { OPEN: '开放', CLOSED: '关闭', SUSPENDED: '停检，成绩不参与统计' }
 const time = (value: string) => new Date(value).toLocaleString('zh-CN', { hour12: false })
 const number = (value: number) => value.toFixed(2)
@@ -89,7 +89,7 @@ onUnmounted(() => { requestId++; detailRequestId++; window.removeEventListener('
     <template v-if="detail">
       <div class="rectification-detail-head"><div><h2>{{ detail.buildingName }} · {{ detail.roomNo }}</h2><p class="form-hint">事件 #{{ detail.id }} · 首次触发 {{ time(detail.createdAt) }}</p></div><b data-testid="rectification-state">{{ stateLabel(detail) }}</b></div>
       <h3>触发依据</h3><p class="form-hint">保留每次触发时的分数与阈值。批次停检不删除整改，由管理人员核实处理。</p>
-      <ul class="rectification-triggers" aria-label="触发依据"><li v-for="trigger in detail.triggers" :key="trigger.scoreId"><div><b>{{ trigger.isoYear }}年第{{ trigger.isoWeek }}周</b><span>触发成绩 {{ number(trigger.totalScore) }} &lt; 当时阈值 {{ number(trigger.threshold) }}</span></div><p>{{ trigger.schemeName }} · 方案 #{{ trigger.schemeId }} · 评分 #{{ trigger.scoreId }}</p><small>检查周一 {{ trigger.weekStart }} · 批次 #{{ trigger.batchId }} · {{ batchLabel[trigger.batchStatus] }}<br />实际评分 {{ time(trigger.submittedAt) }} · 触发记录 {{ time(trigger.triggeredAt) }}</small></li></ul>
+      <ul class="rectification-triggers" aria-label="触发依据"><li v-for="trigger in detail.triggers" :key="trigger.scoreId"><div><b>{{ trigger.isoYear }}年第{{ trigger.isoWeek }}周</b><span>触发成绩 {{ number(trigger.totalScore) }} &lt; 当时阈值 {{ number(trigger.threshold) }}</span></div><p>{{ trigger.schemeName }} · 方案 #{{ trigger.schemeId }} · 评分 #{{ trigger.scoreId }}</p><p v-if="trigger.corrected" class="message">触发成绩已更正 · 当前成绩 {{ number(trigger.currentScore) }}分{{ trigger.currentScore >= trigger.threshold ? (detail.status === 'CLOSED' ? '，当前达标；事件已人工关闭，历史保留。' : '，当前达标；保留历史，需人工核实关闭。') : '，当前仍低于原阈值。' }}</p><small>检查周一 {{ trigger.weekStart }} · 批次 #{{ trigger.batchId }} · {{ batchLabel[trigger.batchStatus] }}<br />实际评分 {{ time(trigger.submittedAt) }} · 触发记录 {{ time(trigger.triggeredAt) }}</small></li></ul>
       <h3>处理记录</h3><ol class="rectification-logs" aria-label="处理记录"><li v-for="log in detail.logs" :key="log.id"><b>{{ actionLabel[log.action] }}</b><small>{{ log.actorName }} · {{ time(log.createdAt) }}</small><p>{{ log.note }}</p></li></ol>
       <form v-if="detail.status === 'OPEN'" class="form-stack rectification-form" @submit.prevent="save">
         <h3>添加处理记录</h3><p class="form-hint">新增低分会要求重新核实；核实结果和关闭说明分别保留。</p>

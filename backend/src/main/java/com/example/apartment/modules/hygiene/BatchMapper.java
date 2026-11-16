@@ -39,7 +39,7 @@ public interface BatchMapper {
     @Select("SELECT DISTINCT building_id AS id, building_name AS name FROM hygiene_batch_room WHERE batch_id = #{id} ORDER BY building_name, building_id")
     List<Building> buildings(long id);
     @Select(ROOM_COLUMNS + " WHERE r.batch_id = #{id} AND r.room_id = #{roomId}") Room room(long id, long roomId);
-    @Select("SELECT id, batch_id, room_id, total_score, threshold, submitted_by, submitted_at FROM hygiene_score WHERE batch_id = #{id} AND room_id = #{roomId}")
+    @Select("SELECT id, batch_id, room_id, total_score, threshold, submitted_by, submitted_at, version FROM hygiene_score WHERE batch_id = #{id} AND room_id = #{roomId}")
     ScoreRow score(long id, long roomId);
     @Select("SELECT dimension_id, name, weight, score, sort_order FROM hygiene_score_dimension WHERE score_id = #{id} ORDER BY sort_order")
     List<ScoredDimension> scoreDimensions(long id);

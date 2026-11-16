@@ -180,3 +180,11 @@ V13采用前向修正，不提供破坏性的自动DOWN。应用回退前须停�
 - housing通过RectificationReferences检查未关闭事件，阻止所属楼栋/寝室停用；整改对象是寝室，不绑定床位或学生个人，退宿不删除事件。闭环后可停用，历史仍可管理查询。
 
 新增审计动作RECTIFICATION_TRIGGERED、RECTIFICATION_FOLLOW_UP、RECTIFICATION_VERIFIED、RECTIFICATION_CLOSED，target_type=RECTIFICATION。正常seed保留事件；固定apartment_test重置先删整改日志和关联再删事件及原评分。应用回退前须停写并备份全部新增记录，不能以旧版评分写入继续运行；采用后续前向迁移修正，不提供破坏性的DOWN。任务14接入成绩更正，17验证规模性能。
+
+## V15–V16 成绩更正
+
+V15为hygiene_score添加非负version默认0，新增hygiene_score_correction，保存每次完整before_data/after_data JSON、原因、操作人id/名称快照和实际更正时间；(score_id,version)唯一，评分/操作人外键保留追溯。V16只扩充整改日志动作约束允许CORRECTED。V1–V14不改，迁移不写模拟业务数据。
+
+更正锁内检查实时管理员权限和评分版本，沿原批次方案重算，更新原评分及维度；更正快照、整改关联/日志、operation_log一致提交。评分身份、原提交信息与唯一同周约束保留。已存在(event_id,score_id)关联只读取复用，不覆盖原触发总分/阈值/时间；当前成绩通过join呈现。低分重触发或原触发分改达标均要求OPEN事件重新核实，CLOSED轨迹不回写。
+
+统计没有缓存或异步重算表，既有只读事务直接读取当前正式值和原周期，原始值可从更正快照追溯。普通seed保留更正；仅固定测试重置在删评分之前先删更正记录。回退前须停写及备份更正/整改/审计，旧版本不支持version与整改联动，采用前向迁移修正。

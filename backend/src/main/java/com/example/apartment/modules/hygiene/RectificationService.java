@@ -26,10 +26,20 @@ public class RectificationService {
         if(before==null) {
             events.create(room.roomId(),room.buildingId(),room.buildingName(),room.roomNo(),now);id=events.insertedId();
         } else { id=before.id();events.retrigger(id,now); }
-        events.trigger(id,score.id(),score.totalScore(),score.threshold(),now);
-        events.log(id,Action.TRIGGERED,actor.id(),actor.displayName(),"正式评分 #"+score.id()+" 低于当时阈值，需跟进核实",now);
+        if(!events.linked(id,score.id())) events.trigger(id,score.id(),score.totalScore(),score.threshold(),now);
+        events.log(id,Action.TRIGGERED,actor.id(),actor.displayName(),"正式评分 #"+score.id()+"（版本 "+score.version()+"）低于当时阈值，需跟进核实",now);
         audit.record(actor.id(),"RECTIFICATION_TRIGGERED","RECTIFICATION",id,before,
                 java.util.Map.of("event",events.find(id),"scoreId",score.id(),"score",score.totalScore(),"threshold",score.threshold()));
+    }
+    /** Corrections keep original trigger snapshots and all closed histories. */
+    @Transactional(propagation=Propagation.MANDATORY)
+    public void corrected(AccountView actor,BatchViews.Room room,BatchViews.ScoreRow score) {
+        if(score.totalScore().compareTo(score.threshold())<0) { trigger(actor,room,score);return; }
+        var before=events.open(room.roomId());
+        if(before==null || !events.linked(before.id(),score.id())) return;
+        var now=clock.instant();events.retrigger(before.id(),now);
+        events.log(before.id(),Action.CORRECTED,actor.id(),actor.displayName(),"触发成绩已更正：评分 #"+score.id()+"（版本 "+score.version()+"）当前达标，历史保留，请重新核实后关闭",now);
+        audit.record(actor.id(),"RECTIFICATION_CORRECTED","RECTIFICATION",before.id(),before,events.find(before.id()));
     }
     @Transactional(readOnly=true)
     public Page list(Status status,Long buildingId,String q,int page,int size) {

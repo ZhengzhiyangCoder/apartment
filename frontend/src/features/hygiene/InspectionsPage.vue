@@ -6,6 +6,7 @@ import { HttpError, request, write } from '../../lib/http'
 import { currentUser, handleAuthorizationFailure } from '../identity/session'
 import { batchStatuses, type Batch, type CurrentBatch, type InspectionPage, type InspectionDetail, type FormalScore, type PersonalDraft, type DraftPage } from './batch-types'
 import BatchGovernance from './BatchGovernance.vue'
+import ScoreCorrections from './ScoreCorrections.vue'
 
 const router = useRouter(), isManager = computed(() => currentUser.value?.role === 'DORM_MANAGER')
 const current = ref<CurrentBatch | null>(null), loading = ref(false), error = ref(''), success = ref('')
@@ -176,6 +177,10 @@ async function submit(next = false) {
   } catch (failure) { await entryFailure(failure) }
   finally { saving.value = false }
 }
+function corrected(score: FormalScore) {
+  if (entry.value) entry.value.score = score
+  void load(result.value.page)
+}
 onMounted(() => { void load(); void loadDrafts() })
 </script>
 
@@ -214,7 +219,7 @@ onMounted(() => { void load(); void loadDrafts() })
   <ElDialog v-model="entryOpen" title="寝室正式评分" width="700px" class="account-dialog" :close-on-click-modal="false" :close-on-press-escape="!saving" :show-close="!saving" destroy-on-close>
     <p v-if="entryLoading" role="status">正在核对批次与寝室…</p>
     <template v-if="entry && entryBatch"><div class="repair-detail-head"><h2>{{ entry.room.buildingName }} · {{ entry.room.roomNo }}</h2><span class="account-status">{{ !entryExpected ? '已移出名单' : entry.score ? '已检查' : '未检查' }}</span></div><p class="form-hint">{{ entryBatch.isoYear }}年第{{ entryBatch.isoWeek }}周 · 归属日 {{ entryBatch.weekStart }}<br />标准 #{{ entryBatch.schemeId }} · {{ entryBatch.schemeName }} · 阈值 {{ decimal(entryBatch.threshold) }}分</p>
-      <template v-if="entry.score"><p class="inspection-saved">正式得分 <strong>{{ decimal(entry.score.totalScore) }}</strong>分</p><p class="form-hint">实际提交：{{ time(entry.score.submittedAt) }}（上海时间） · 记录 #{{ entry.score.id }}</p><table class="account-table"><caption class="sr-only">正式评分依据</caption><thead><tr><th>维度</th><th>权重</th><th>分值</th></tr></thead><tbody><tr v-for="d in entry.score.dimensions" :key="d.dimensionId"><td>{{ d.name }}</td><td>{{ decimal(d.weight) }}%</td><td>{{ d.score }}</td></tr></tbody></table></template>
+      <template v-if="entry.score"><p class="inspection-saved">正式得分 <strong>{{ decimal(entry.score.totalScore) }}</strong>分</p><p class="form-hint">实际提交：{{ time(entry.score.submittedAt) }}（上海时间） · 记录 #{{ entry.score.id }}</p><table class="account-table"><caption class="sr-only">正式评分依据</caption><thead><tr><th>维度</th><th>权重</th><th>分值</th></tr></thead><tbody><tr v-for="d in entry.score.dimensions" :key="d.dimensionId"><td>{{ d.name }}</td><td>{{ decimal(d.weight) }}%</td><td>{{ d.score }}</td></tr></tbody></table><ScoreCorrections :key="entry.score.id" :score="entry.score" :can-correct="!isManager" @changed="corrected" @busy="saving = $event" /></template>
       <template v-else-if="!isManager"><p class="form-hint">该寝室尚未检查，由宿舍管理员提交正式评分。</p><p v-for="d in entryBatch.dimensions" :key="d.id">{{ d.name }} · {{ decimal(d.weight) }}%</p></template>
       <form v-if="isManager && (!entry.score || preserveInput)" class="form-stack" @submit.prevent="submit(false)"><p v-if="entry.score" class="form-hint">以下为本次未提交输入，已保留供核对；正式结果以上方为准。</p><div v-for="d in entryBatch.dimensions" :key="d.id" class="inspection-dimension"><div><b>{{ d.name }}</b><span class="account-name">权重 {{ decimal(d.weight) }}%</span></div><div class="field"><label :for="`inspection-value-${d.id}`">{{ d.name }}分值</label><ElInput :id="`inspection-value-${d.id}`" v-model="values[d.id]" inputmode="numeric" maxlength="4" placeholder="0–100整数" :disabled="saving || !canSubmit" /></div></div><p class="inspection-preview" data-testid="score-preview">综合分预览：<strong>{{ preview === null ? '请填写全部整数分值' : decimal(preview) }}</strong></p><p class="form-hint">提交后记为正式检查；同一寝室每批次只能提交一份正式评分。下一间按当前楼栋/关键词范围查找未检寝室。</p><div v-if="canSubmit" class="form-actions"><ElButton native-type="submit" :disabled="saving || entryLoading" :loading="saving">提交正式评分</ElButton><ElButton :disabled="saving || entryLoading" @click="submit(true)">保存并下一间</ElButton><ElButton :disabled="saving || entryLoading" @click="saveDraft">暂存个人草稿</ElButton></div></form>
     </template>

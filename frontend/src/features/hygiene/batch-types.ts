@@ -11,6 +11,7 @@ export interface CurrentBatch { isoYear: number; isoWeek: number; weekStart: str
 export interface InspectionRoom { roomId: number; buildingId: number; buildingName: string; roomNo: string; scoreId: number | null; totalScore: number | null }
 export interface InspectionPage { items: InspectionRoom[]; total: number; page: number; size: number }
 export interface FormalScore {
+  version: number
   id: number; batchId: number; roomId: number; totalScore: number; threshold: number; submittedBy: number; submittedAt: string
   dimensions: { dimensionId: number; name: string; weight: number; score: number; sortOrder: number }[]
 }

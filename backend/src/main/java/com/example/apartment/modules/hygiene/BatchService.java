@@ -161,14 +161,8 @@ public class BatchService {
         var dimensions=schemes.dimensions(batch.schemeId());
         var draft=drafts.find(actor.id(),id,roomId);
         if(input.draftVersion()!=null && input.draftVersion()!=(draft==null?0:draft.version())) throw draftConflict();
-        var supplied=new java.util.HashMap<Long,Integer>();
-        for(var dimension:input.dimensions()) {
-            if(supplied.put(dimension.dimensionId(),dimension.score())!=null) throw invalidDimensions();
-        }
-        if(supplied.size()!=dimensions.size() || dimensions.stream().anyMatch(d->!supplied.containsKey(d.id()))) throw invalidDimensions();
-        var total=BigDecimal.ZERO;
-        for(var dimension:dimensions) total=total.add(dimension.weight().multiply(BigDecimal.valueOf(supplied.get(dimension.id()))));
-        total=total.divide(BigDecimal.valueOf(100),2,RoundingMode.HALF_UP);
+        var calculated=ScoreCalculation.calculate(dimensions,input.dimensions());
+        var total=calculated.total();var supplied=calculated.values();
         try { batches.insertScore(id,roomId,total,batch.threshold(),actor.id(),now); }
         catch(org.springframework.dao.DuplicateKeyException failure) { throw alreadyScored(); }
         long scoreId=batches.insertedId();
@@ -229,7 +223,6 @@ public class BatchService {
         return room;
     }
     private ApiException alreadyScored() { return new ApiException(HttpStatus.CONFLICT,"ALREADY_SCORED","该寝室已提交正式评分，请查看已保存结果，不可重复录分"); }
-    private ApiException invalidDimensions() { return new ApiException(HttpStatus.BAD_REQUEST,"INVALID_DIMENSIONS","必须完整提交本批次方案的全部维度，不能重复或添加其他维度"); }
     private Batch require(long id) {
         var batch=batches.find(id);
         if(batch==null) throw new ApiException(HttpStatus.NOT_FOUND,"BATCH_NOT_FOUND","检查批次不存在，请刷新页面");
