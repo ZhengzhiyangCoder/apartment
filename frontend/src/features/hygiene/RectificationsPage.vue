@@ -98,6 +98,10 @@ onUnmounted(() => { requestId++; detailRequestId++; window.removeEventListener('
         <ElButton native-type="submit" type="primary" :disabled="saving" :loading="saving">保存处理记录</ElButton>
       </form>
       <p v-else class="form-hint">已于 {{ detail.closedAt ? time(detail.closedAt) : '—' }} 关闭。历史依据和处理记录保留。</p>
+      <div v-if="detail.status === 'CLOSED' && note.trim()" class="retained-note">
+        <label>未提交说明<textarea :value="note" aria-label="未提交说明" readonly rows="3" /></label>
+        <p class="form-hint">这段说明尚未保存。事件已由其他管理人员关闭，请在返回列表前复制需要保留的内容。</p>
+      </div>
     </template>
     <template #footer><ElButton :disabled="saving" @click="close">返回列表</ElButton></template>
   </ElDialog>
@@ -109,5 +113,5 @@ input:focus-visible, select:focus-visible, textarea:focus-visible { outline: 2px
 .rectification-card { padding: 24px; }.rectification-card td,.rectification-card th { width: auto; padding: 16px 8px; overflow-wrap: anywhere; }.rectification-card small { display: block; margin-top: 8px; color: var(--muted); font-size: 12px; }.pagination { display: flex; justify-content: end; align-items: center; gap: 18px; margin-top: 24px; }
 .rectification-tools,.rectification-detail-head { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 20px; }.rectification-tools small { color: var(--muted); }.rectification-detail-head b { white-space: nowrap; color: var(--primary); }
 .rectification-triggers { padding: 0; list-style: none; }.rectification-triggers li { padding: 16px; margin-bottom: 12px; border: 1px solid #d4dce6; border-radius: 14px; }.rectification-triggers li>div { display: flex; justify-content: space-between; gap: 16px; }.rectification-triggers p { margin: 10px 0; }.rectification-triggers small,.rectification-logs small { color: var(--muted); line-height: 1.8; }
-.rectification-logs { padding-left: 24px; }.rectification-logs li { padding: 8px 0; }.rectification-logs small { margin-left: 12px; }.rectification-logs p { margin: 8px 0; white-space: pre-wrap; overflow-wrap: anywhere; }.rectification-form { border-top: 1px solid #d4dce6; padding-top: 16px; margin-top: 20px; }.rectification-form textarea { resize: vertical; min-height: 90px; }.rectification-form select { width: 100%; }
+.rectification-logs { padding-left: 24px; }.rectification-logs li { padding: 8px 0; }.rectification-logs small { margin-left: 12px; }.rectification-logs p { margin: 8px 0; white-space: pre-wrap; overflow-wrap: anywhere; }.rectification-form { border-top: 1px solid #d4dce6; padding-top: 16px; margin-top: 20px; }.rectification-form textarea { resize: vertical; min-height: 90px; }.rectification-form select { width: 100%; }.retained-note { margin-top: 20px; }.retained-note label { display: grid; gap: 8px; }
 </style>

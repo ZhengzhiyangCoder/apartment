@@ -159,3 +159,24 @@ test('空整改列表及学生维修人员权限边界', async ({ page, browser 
     } finally { await context.close() }
   }
 })
+
+test('其他管理人员关闭后，冲突重载仍可读取未提交说明', async ({ page, browser }) => {
+  const context = await browser.newContext({ viewport: page.viewportSize()! }); const admin = await context.newPage()
+  try {
+    const f = await fixture(admin, page); await score(page, f.room.id, f.batch)
+    await page.goto('/rectifications'); await page.getByRole('button', { name: '查看与跟进', exact: true }).click()
+    const dialog = page.getByRole('dialog', { name: '整改详情与处理', exact: true })
+    await dialog.getByLabel('处理说明', { exact: true }).fill('模拟尚未提交，关闭后仍需复制核对的说明')
+    const event = (await (await admin.request.get('/api/hygiene/rectifications')).json()).items[0]
+    const verified = await post(admin, `/api/hygiene/rectifications/${event.id}/verify`, { version: event.version, note: '模拟另一管理人员核实' }, 200)
+    await post(admin, `/api/hygiene/rectifications/${event.id}/close`, { version: verified.version, note: '模拟另一管理人员关闭' }, 200)
+    await dialog.getByRole('button', { name: '保存处理记录', exact: true }).click(); await expect(dialog.getByRole('alert')).toContainText('整改已被更新')
+    await dialog.getByRole('button', { name: '重新载入详情', exact: true }).click(); await expect(dialog.getByTestId('rectification-state')).toContainText('已关闭')
+    const retained = dialog.getByLabel('未提交说明', { exact: true })
+    await expect(retained).toHaveValue('模拟尚未提交，关闭后仍需复制核对的说明')
+    await expect(retained).toHaveAttribute('readonly', '')
+    await retained.selectText(); expect(await retained.evaluate(el => (el as HTMLTextAreaElement).selectionEnd - (el as HTMLTextAreaElement).selectionStart)).toBeGreaterThan(0)
+    await expect(dialog.getByRole('button', { name: '保存处理记录', exact: true })).toHaveCount(0)
+    await expect(dialog.getByRole('list', { name: '处理记录', exact: true })).not.toContainText('模拟尚未提交，关闭后仍需复制核对的说明')
+  } finally { await context.close() }
+})
