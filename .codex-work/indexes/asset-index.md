@@ -150,3 +150,11 @@
 - [V13迁移](../../backend/src/main/resources/db/migration/V13__batch_governance.sql)、[卫生后端](../../backend/src/main/java/com/example/apartment/modules/hygiene/)、[治理组件](../../frontend/src/features/hygiene/BatchGovernance.vue)、[公开API测试](../../backend/src/test/java/com/example/apartment/hygiene/BatchGovernanceHttpTest.java)、[浏览器测试](../../frontend/e2e/batches.spec.ts)。
 - [测试证据](../../docs/testing.md)：75后端、82全量双尺寸浏览器与修正后28卫生回归，空库迁移、原地升级及重启持久化通过；[演示](../../docs/demo.md)、[接口](../../docs/api.md)、[数据库](../../docs/database.md)、[运行](../../docs/local-run.md)同步更新。
 - [截图](../../output/playwright/)task10-removed-draft/changes/roster/history，两尺寸8张。运行产物与一次性.runtime校验脚本不入Git、不注册为全局可用资产。下一项11未启动。
+
+
+## 任务11学生成绩、趋势与排行（2026-11-16）
+
+- [任务票](../../.scratch/dorm-management/issues/11-student-results-rankings.md)、[归档卡](../task-cards/completed/20261116-task11-implement.md)、[实施](../logs/20261116-task11-implement.md)、[双轴审查](../logs/20261116-task11-review.md)。
+- [统计查询](../../backend/src/main/java/com/example/apartment/modules/hygiene/ResultMapper.java)、[学生服务](../../backend/src/main/java/com/example/apartment/modules/hygiene/StudentResultsService.java)、[页面](../../frontend/src/features/hygiene/StudentResultsPage.vue)、[API测试](../../backend/src/test/java/com/example/apartment/hygiene/StudentResultsHttpTest.java)、[浏览器测试](../../frontend/e2e/results.spec.ts)。
+- [测试](../../docs/testing.md)：81后端、96全量两尺寸浏览器、构建及演示重启数据不变；[演示](../../docs/demo.md)、[API](../../docs/api.md)、[数据库](../../docs/database.md)、[运行](../../docs/local-run.md)更新。
+- [截图](../../output/playwright/)task11-results/detail/transferred/empty各两尺寸。无新依赖或迁移；复用既有测试工具，.runtime一次性脚本不登记全局资产。下一项12待开始。

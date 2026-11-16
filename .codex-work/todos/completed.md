@@ -106,3 +106,10 @@
 
 - 带原因的名单补入/移出、关闭/停检/恢复/重开、个人草稿只读恢复、历史授权跨周保留及变更追溯完成。75后端、82全量浏览器及修正后28卫生回归、构建、空库V1–V13和演示重启持久化通过。
 - [任务票](../../.scratch/dorm-management/issues/10-batch-governance.md)、[归档卡](../task-cards/completed/20261116-task10-implement.md)、[实施](../logs/20261116-task10-implement.md)、[审查](../logs/20261116-task10-review.md)。Standards0违例；Spec两项P2已修复复核。实现4157698、修正52a8a9f本地提交未推送。下一项11；总索引同步保留current。
+
+
+## 2026-11-16 · 任务11学生成绩、趋势与排行
+
+- 完成当前寝室授权、周月成绩与历史标准、12周期趋势、当前楼栋匿名榜单；停检排除/恢复、原周补录、舍入后竞赛排名、调寝新范围及旧报修验证通过。
+- 81后端/96全量双尺寸Chrome、构建及演示重启原数据不变；Spec1项P3修复闭环，Standards零违例。实现308506c、修正4f5950c本地提交，未推送。
+- [归档卡](../task-cards/completed/20261116-task11-implement.md)、[实施](../logs/20261116-task11-implement.md)、[审查](../logs/20261116-task11-review.md)。下一项12待开始，当前todo只保留后续及总索引同步。
