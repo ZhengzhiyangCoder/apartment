@@ -173,3 +173,12 @@ test('无检查数据明确为空，学生和维修人员没有管理统计入�
     } finally { await context.close() }
   }
 })
+
+
+test('新增统计导航后系统管理员仍可操作侧栏末项', async ({ page }) => {
+  await login(page, 'system_admin')
+  await page.getByRole('link', { name: '修改密码', exact: true }).click({ timeout: 5000 })
+  await expect(page).toHaveURL(/\/password$/)
+  await page.getByRole('link', { name: '卫生统计', exact: true }).click()
+  await expect(page.getByTestId('statistics-summary')).toBeVisible()
+})

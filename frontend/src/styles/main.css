@@ -315,6 +315,8 @@ button {
   width:232px;
   display:flex;
   flex-direction:column;
+  overflow-y:auto;
+  overscroll-behavior:contain;
   padding:40px 24px 24px
 }
 .sidebar .brand {
